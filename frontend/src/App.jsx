@@ -3,10 +3,12 @@ import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import './App.css'
+import Login from './Login'
 
 function App() {
   const [count, setCount] = useState(0)
   const [health, setHealth] = useState(null)
+  const [user, setUser] = useState(null)
 
   useEffect(() => {
     fetch('http://localhost:3001/api/health')
@@ -15,8 +17,20 @@ function App() {
       .catch(() => setHealth({ ok: false }))
   }, [])
 
-  return (
-    <>
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (token) setUser({ token })
+  }, [])
+
+  if (!user)
+    return (
+      <div className="auth-wrap">
+        <h1 className="app-title">Sistema de Gestión de Turnos Empresariales (SGTurnos)</h1>
+        <Login onLogin={setUser} />
+      </div>
+    )
+
+  return (<>
       <section id="center">
         <div className="hero">
           <img src={heroImg} className="base" width="170" height="179" alt="" />
