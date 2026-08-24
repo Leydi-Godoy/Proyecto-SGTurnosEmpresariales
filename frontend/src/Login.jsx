@@ -29,19 +29,29 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="login">
-      <h2>Iniciar sesión</h2>
-      <form onSubmit={submit}>
-        <label>
-          Correo
-          <input value={correo} onChange={(e) => setCorreo(e.target.value)} />
-        </label>
-        <label>
-          Contraseña
-          <input type="password" value={contrasena} onChange={(e) => setContrasena(e.target.value)} />
-        </label>
-        <button type="submit" disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
-        {error && <div style={{ color: 'red' }}>{error}</div>}
-      </form>
+      <div className="login-grid">
+        <div className="login-left">
+          <img src="/logo.png" alt="SGTurnos" className="login-logo" />
+          <h2>Iniciar sesión</h2>
+          <p style={{ color: 'var(--muted)', marginTop: 6 }}>Accede a tu cuenta para gestionar turnos</p>
+        </div>
+        <div className="login-right">
+          <form onSubmit={submit}>
+            <label>
+              Correo
+              <input value={correo} onChange={(e) => setCorreo(e.target.value)} />
+            </label>
+            <label>
+              Contraseña
+              <input type="password" value={contrasena} onChange={(e) => setContrasena(e.target.value)} />
+            </label>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+              <button type="submit" disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
+            </div>
+            {error && <div style={{ color: 'var(--accent)', marginTop: 8 }}>{error}</div>}
+          </form>
+        </div>
+      </div>
     </div>
   )
 }

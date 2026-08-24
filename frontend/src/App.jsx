@@ -22,9 +22,15 @@ function App() {
     if (token) setUser({ token })
   }, [])
 
-  if (!user) return <Login onLogin={setUser} />
+  if (!user)
+    return (
+      <div className="auth-wrap">
+        <h1 className="app-title">Sistema de Gestión de Turnos Empresariales (SGTurnos)</h1>
+        <Login onLogin={setUser} />
+      </div>
+    )
 
-  return (
+  return (<>
       <section id="center">
         <div className="hero">
           <img src={heroImg} className="base" width="170" height="179" alt="" />
