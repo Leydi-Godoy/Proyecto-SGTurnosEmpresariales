@@ -12,6 +12,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date() }));
 try {
 	const authRouter = require('./auth');
 	app.use('/api/auth', authRouter);
+	app.use('/api/users', require('./users'));
 } catch (e) {
 	console.warn('Auth router not available:', e && e.message);
 }

@@ -12,25 +12,70 @@ try {
   pool = null;
 }
 
-// POST /api/auth/login
+function authenticateToken(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'token required' });
+
+  try {
+    req.auth = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+    next();
+  } catch {
+    return res.status(401).json({ error: 'invalid token' });
+  }
+}
+
+async function findUser(correo) {
+  if (!pool) return null;
+
+  const normalizedEmail = correo.trim().toLowerCase();
+
+  // Prefer the normalized schema, but continue with the legacy schema when
+  // the database contains both tables and the user exists only in `usuario`.
+  try {
+    const [rows] = await pool.query(
+      `SELECT id AS Id_usuario, full_name AS nombre, email AS correo,
+              password_hash AS contrasena, NULL AS Id_rol
+       FROM users
+       WHERE LOWER(email) = ? AND is_active = 1
+       LIMIT 1`,
+      [normalizedEmail],
+    );
+    if (rows[0]) return rows[0];
+  } catch (error) {
+    if (!['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(error.code)) throw error;
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT Id_usuario,
+              CONCAT_WS(' ', primer_nombre, segundo_nombre, primer_apellido, segundo_apellido) AS nombre,
+              correo, contrasena, Id_rol
+       FROM usuario
+       WHERE LOWER(correo) = ? AND activo = 1
+       LIMIT 1`,
+      [normalizedEmail],
+    );
+    return rows[0] || null;
+  } catch (error) {
+    if (['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(error.code)) return null;
+    throw error;
+  }
+}
+
 router.post('/login', async (req, res) => {
   const { correo, contrasena } = req.body || {};
   if (!correo || !contrasena) return res.status(400).json({ error: 'correo y contrasena required' });
 
   try {
-    let user;
-    if (pool) {
-      const [rows] = await pool.query('SELECT Id_usuario, primer_nombre, primer_apellido, correo, contrasena, Id_rol FROM usuario WHERE correo = ? LIMIT 1', [correo]);
-      user = rows[0];
-    }
+    const user = await findUser(correo);
 
-    // fallback demo user if DB not available
+    // Development-only fallback. Production login must use MySQL.
     if (!user) {
-      // demo credentials for development: admin@local / admin
-      if (correo === process.env.DEV_ADMIN_EMAIL || correo === 'admin@local') {
+      if (correo.trim().toLowerCase() === (process.env.DEV_ADMIN_EMAIL || 'admin@local').toLowerCase()) {
         const demoHash = process.env.DEV_ADMIN_HASH || bcrypt.hashSync('admin', 8);
         if (!bcrypt.compareSync(contrasena, demoHash)) return res.status(401).json({ error: 'invalid credentials' });
-        const demo = { Id_usuario: 1, primer_nombre: 'Admin', primer_apellido: '', correo: correo, Id_rol: 'supad1' };
+        const demo = { Id_usuario: 1, nombre: 'Admin', correo: correo, Id_rol: 'super_admin' };
         const token = jwt.sign({ id: demo.Id_usuario, role: demo.Id_rol }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '8h' });
         return res.json({ token, user: demo });
       }
@@ -40,14 +85,20 @@ router.post('/login', async (req, res) => {
     const ok = await bcrypt.compare(contrasena, user.contrasena);
     if (!ok) return res.status(401).json({ error: 'invalid credentials' });
 
-    const payload = { id: user.Id_usuario, role: user.Id_rol };
+    const role = user.Id_rol || (user.correo.toLowerCase() === 'superadmin@sgturnos.com' ? 'super_admin' : 'user');
+    const payload = { id: user.Id_usuario, role };
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'devsecret', { expiresIn: '8h' });
 
-    res.json({ token, user: { Id_usuario: user.Id_usuario, primer_nombre: user.primer_nombre, correo: user.correo, Id_rol: user.Id_rol } });
+    res.json({ token, user: { Id_usuario: user.Id_usuario, nombre: user.nombre, correo: user.correo, Id_rol: role } });
   } catch (err) {
     console.error('auth error', err);
-    res.status(500).json({ error: 'server error' });
+    res.status(503).json({ error: 'database unavailable' });
   }
 });
 
+router.get('/me', authenticateToken, (req, res) => {
+  res.json({ authenticated: true, auth: req.auth });
+});
+
 module.exports = router;
+module.exports.authenticateToken = authenticateToken;

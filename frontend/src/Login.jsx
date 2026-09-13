@@ -11,7 +11,7 @@ export default function Login({ onLogin }) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('http://localhost:3001/api/auth/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ correo, contrasena }),
@@ -37,13 +37,13 @@ export default function Login({ onLogin }) {
         </div>
         <div className="login-right">
           <form onSubmit={submit}>
-            <label>
+            <label htmlFor="correo">
               Correo
-              <input value={correo} onChange={(e) => setCorreo(e.target.value)} />
+              <input id="correo" type="email" autoComplete="email" required value={correo} onChange={(e) => setCorreo(e.target.value)} />
             </label>
-            <label>
+            <label htmlFor="contrasena">
               Contraseña
-              <input type="password" value={contrasena} onChange={(e) => setContrasena(e.target.value)} />
+              <input id="contrasena" type="password" autoComplete="current-password" required value={contrasena} onChange={(e) => setContrasena(e.target.value)} />
             </label>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
               <button type="submit" disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
