@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { ForgotPassword } from './PasswordReset'
 
 export default function Login({ onLogin }) {
   const [correo, setCorreo] = useState('')
   const [contrasena, setContrasena] = useState('')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
 
   async function submit(e) {
     e.preventDefault()
@@ -36,7 +38,7 @@ export default function Login({ onLogin }) {
           <p style={{ color: 'var(--muted)', marginTop: 6 }}>Accede a tu cuenta para gestionar turnos</p>
         </div>
         <div className="login-right">
-          <form onSubmit={submit}>
+          {showForgotPassword ? <ForgotPassword onBack={() => setShowForgotPassword(false)} /> : <form onSubmit={submit}>
             <label htmlFor="correo">
               Correo
               <input id="correo" type="email" autoComplete="email" required value={correo} onChange={(e) => setCorreo(e.target.value)} />
@@ -48,8 +50,9 @@ export default function Login({ onLogin }) {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
               <button type="submit" disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
             </div>
+            <button className="link-button login-forgot" type="button" onClick={() => { setError(null); setShowForgotPassword(true) }}>¿Olvidaste tu contraseña?</button>
             {error && <div style={{ color: 'var(--accent)', marginTop: 8 }}>{error}</div>}
-          </form>
+          </form>}
         </div>
       </div>
     </div>
