@@ -31,6 +31,17 @@ Notes and recommendations
 - After applying migrations, test login and role assignment flows in a dev environment.
 - Rotate any API credentials that may have been exposed in the old dataset.
 
+Inicio local con XAMPP
+----------------------
+1. En phpMyAdmin crea la base `sgturnos_empresariales` con cotejamiento `utf8mb4_general_ci`.
+2. Ejecuta `migrations/00_create_schema.sql`.
+3. Ejecuta `migrations/06_seed_super_admin.sql`.
+4. Copia `.env.example` como `.env` y ajusta `DB_USER` y `DB_PASS` si tu instalación no usa `root` sin contraseña.
+5. Desde `backend/` ejecuta `npm start`.
+
+Credenciales iniciales de prueba: `superadmin@sgturnos.com` / `admin123`.
+El frontend se ejecuta desde `frontend/` con `npm run dev` y reenvía `/api` a `localhost:3001`.
+
 If you want, I can:
 - Extract the schema from the referenced repository and generate a full set of SQL migration scripts adapted to this project, or
 - Add `knex` migrations and npm scripts to run them programmatically.

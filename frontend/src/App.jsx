@@ -1,147 +1,72 @@
-import { useState, useEffect } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useEffect, useState } from 'react'
 import './App.css'
 import Login from './Login'
 
 function App() {
-  const [count, setCount] = useState(0)
   const [health, setHealth] = useState(null)
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem('user')
+    return storedUser ? JSON.parse(storedUser) : null
+  })
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/health')
+    fetch('/api/health')
       .then((r) => r.json())
       .then((data) => setHealth(data))
       .catch(() => setHealth({ ok: false }))
   }, [])
 
+  const [users, setUsers] = useState([])
+  const [userError, setUserError] = useState('')
+  const [showCreateUser, setShowCreateUser] = useState(false)
+  const [newUser, setNewUser] = useState({ fullName: '', email: '', password: '' })
+
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (token) setUser({ token })
-  }, [])
+    if (!user) return
+    fetch('/api/users', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los usuarios')
+        setUsers(data)
+      })
+      .catch((error) => setUserError(error.message))
+  }, [user])
 
-  if (!user)
-    return (
-      <div className="auth-wrap">
-        <h1 className="app-title">Sistema de Gestión de Turnos Empresariales (SGTurnos)</h1>
-        <Login onLogin={setUser} />
-      </div>
-    )
+  function handleLogin(nextUser) {
+    localStorage.setItem('user', JSON.stringify(nextUser))
+    setUser(nextUser)
+  }
 
-  return (<>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-          <p style={{ marginTop: 8 }}>
-            Backend: {health ? (health.ok ? 'online' : 'offline') : 'checking...'}
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+  function logout() {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    setUser(null)
+    setUsers([])
+  }
 
-      <div className="ticks"></div>
+  async function createUser(event) {
+    event.preventDefault()
+    setUserError('')
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(newUser),
+    })
+    const data = await response.json()
+    if (!response.ok) return setUserError(data.error || 'No se pudo crear el usuario')
+    setUsers((currentUsers) => [{ id: data.id, full_name: data.fullName, email: data.email, is_active: 1 }, ...currentUsers])
+    setNewUser({ fullName: '', email: '', password: '' })
+    setShowCreateUser(false)
+  }
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+  if (!user) return <div className="auth-wrap"><div className="brand-mark">SG</div><h1 className="app-title">SGTurnos Empresariales</h1><p className="subtitle">Gestión de turnos, personas y operaciones</p><Login onLogin={handleLogin} /></div>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+  return <main className="dashboard">
+    <header className="dashboard-header"><div><span className="eyebrow">Panel de control</span><h1>Hola, {user.nombre || 'Administrador'}</h1></div><button className="button-secondary" type="button" onClick={logout}>Cerrar sesión</button></header>
+    <section className="status-row"><div><span className="status-dot" /> API {health?.ok ? 'conectada' : 'sin respuesta'}</div><div>Rol: <strong>{user.Id_rol || 'Usuario'}</strong></div></section>
+    <section className="dashboard-grid"><article className="panel panel-accent"><span className="eyebrow">Usuarios registrados</span><strong className="metric">{users.length}</strong><p>Personas disponibles para asignar turnos.</p></article><article className="panel"><span className="eyebrow">Siguiente módulo</span><h2>Gestión de turnos</h2><p>La base está lista para construir departamentos, horarios y asignaciones.</p></article></section>
+    <section className="panel users-panel"><div className="panel-heading"><div><span className="eyebrow">Directorio</span><h2>Usuarios del sistema</h2></div><button className="button-primary" type="button" onClick={() => setShowCreateUser((visible) => !visible)}>Nuevo usuario</button></div>{showCreateUser && <form className="create-user" onSubmit={createUser}><input aria-label="Nombre completo" placeholder="Nombre completo" required value={newUser.fullName} onChange={(event) => setNewUser({ ...newUser, fullName: event.target.value })} /><input aria-label="Correo" type="email" placeholder="Correo" required value={newUser.email} onChange={(event) => setNewUser({ ...newUser, email: event.target.value })} /><input aria-label="Contraseña" type="password" placeholder="Contraseña" minLength="8" required value={newUser.password} onChange={(event) => setNewUser({ ...newUser, password: event.target.value })} /><button className="button-primary" type="submit">Guardar</button></form>}{userError && <p className="feedback">{userError}</p>}<div className="table-wrap"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Estado</th></tr></thead><tbody>{users.map((item) => <tr key={item.id}><td>{item.full_name}</td><td>{item.email}</td><td><span className="active-label">Activo</span></td></tr>)}{users.length === 0 && <tr><td colSpan="3">No hay usuarios visibles. Ejecuta la migración inicial.</td></tr>}</tbody></table></div></section>
+  </main>
 }
 
 export default App
