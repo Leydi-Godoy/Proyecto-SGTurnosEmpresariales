@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import Login from './Login'
+import ResetPassword from './PasswordReset'
 
 function App() {
   const [health, setHealth] = useState(null)
@@ -58,6 +59,8 @@ function App() {
     setNewUser({ fullName: '', email: '', password: '' })
     setShowCreateUser(false)
   }
+
+  if (window.location.pathname === '/restablecer-contrasena') return <div className="auth-wrap"><div className="brand-mark">SG</div><h1 className="app-title">SGTurnos Empresariales</h1><p className="subtitle">Recuperación segura de acceso</p><ResetPassword /></div>
 
   if (!user) return <div className="auth-wrap"><div className="brand-mark">SG</div><h1 className="app-title">SGTurnos Empresariales</h1><p className="subtitle">Gestión de turnos, personas y operaciones</p><Login onLogin={handleLogin} /></div>
 
