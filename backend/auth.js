@@ -89,8 +89,8 @@ async function findUser(correo) {
     const [rows] = await pool.query(
       `SELECT Id_usuario,
               CONCAT_WS(' ', primer_nombre, segundo_nombre, primer_apellido, segundo_apellido) AS nombre,
-        correo, contrasena, Id_rol, 'usuario' AS source
-       FROM usuario
+        correo, contrasena, Id_rol, 'usuarios' AS source
+       FROM usuarios
        WHERE LOWER(correo) = ? AND activo = 1
        LIMIT 1`,
       [normalizedEmail],
