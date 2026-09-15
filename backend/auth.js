@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const router = express.Router();
+// temporary debug logging removed
 require('dotenv').config();
 
 let pool;
@@ -13,6 +14,7 @@ try {
 } catch (e) {
   pool = null;
 }
+console.log('[auth] db pool present:', !!pool);
 
 function authenticateToken(req, res, next) {
   const header = req.headers.authorization || '';
@@ -65,6 +67,7 @@ async function sendResetEmail(email, resetUrl) {
 }
 
 async function findUser(correo) {
+  console.log('[auth] findUser called for', correo);
   if (!pool) return null;
 
   const normalizedEmail = correo.trim().toLowerCase();
@@ -80,21 +83,25 @@ async function findUser(correo) {
        LIMIT 1`,
       [normalizedEmail],
     );
+    console.log('[auth] users table query returned rows:', Array.isArray(rows) ? rows.length : typeof rows);
     if (rows[0]) return rows[0];
   } catch (error) {
+    console.log('[auth] users table query error:', error && error.code);
     if (!['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(error.code)) throw error;
   }
 
   try {
     const [rows] = await pool.query(
-      `SELECT Id_usuario,
+      `SELECT id AS Id_usuario,
               CONCAT_WS(' ', primer_nombre, segundo_nombre, primer_apellido, segundo_apellido) AS nombre,
-        correo, contrasena, Id_rol, 'usuarios' AS source
+        correo, contrasena, Id_rol, activo, 'usuarios' AS source
        FROM usuarios
        WHERE LOWER(correo) = ? AND activo = 1
        LIMIT 1`,
       [normalizedEmail],
     );
+    console.log('[auth] usuarios table query returned rows:', Array.isArray(rows) ? rows.length : typeof rows);
+    if (rows[0]) console.log('[auth] usuarios row:', { Id_usuario: rows[0].Id_usuario, correo: rows[0].correo, activo: rows[0].activo });
     return rows[0] || null;
   } catch (error) {
     if (['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(error.code)) return null;
@@ -110,6 +117,7 @@ router.post('/forgot-password', async (req, res) => {
 
   try {
     const user = await findUser(correo);
+    console.log('[auth] login attempt for', String(correo || '').toLowerCase());
     if (!user) return res.json(genericResponse);
 
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -180,7 +188,7 @@ router.post('/reset-password', async (req, res) => {
     const passwordHash = await bcrypt.hash(contrasena, 12);
     const [result] = resetToken.user_id
       ? await connection.query('UPDATE users SET password_hash = ? WHERE id = ? AND is_active = 1', [passwordHash, resetToken.user_id])
-      : await connection.query('UPDATE usuario SET contrasena = ? WHERE Id_usuario = ? AND activo = 1', [passwordHash, resetToken.legacy_user_id]);
+      : await connection.query('UPDATE usuarios SET contrasena = ? WHERE Id_usuario = ? AND activo = 1', [passwordHash, resetToken.legacy_user_id]);
     if (!result.affectedRows) {
       await connection.rollback();
       return res.status(400).json({ error: 'La cuenta ya no está disponible.' });
@@ -201,9 +209,11 @@ router.post('/reset-password', async (req, res) => {
 router.post('/login', async (req, res) => {
   const { correo, contrasena } = req.body || {};
   if (!correo || !contrasena) return res.status(400).json({ error: 'correo y contrasena required' });
+  console.log('[auth] login body:', { correo: String(correo || ''), contrasena: typeof contrasena === 'string' ? '<redacted>' : typeof contrasena });
 
   try {
     const user = await findUser(correo);
+    if (!user) console.log('[auth] findUser returned null for', String(correo || '').toLowerCase());
 
     // Development-only fallback. Production login must use MySQL.
     if (!user) {
@@ -217,7 +227,9 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'invalid credentials' });
     }
 
+    console.log('[auth] found user:', user ? { Id_usuario: user.Id_usuario, correo: user.correo } : null);
     const ok = await bcrypt.compare(contrasena, user.contrasena);
+    console.log('[auth] password match:', ok === true);
     if (!ok) return res.status(401).json({ error: 'invalid credentials' });
 
     const role = user.Id_rol || (user.correo.toLowerCase() === 'superadmin@sgturnos.com' ? 'super_admin' : 'user');
