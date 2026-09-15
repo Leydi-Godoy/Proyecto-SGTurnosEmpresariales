@@ -87,9 +87,9 @@ async function findUser(correo) {
 
   try {
     const [rows] = await pool.query(
-      `SELECT Id_usuario,
+      `SELECT id AS Id_usuario,
               CONCAT_WS(' ', primer_nombre, segundo_nombre, primer_apellido, segundo_apellido) AS nombre,
-        correo, contrasena, Id_rol, 'usuarios' AS source
+        correo, contrasena, id_rol AS Id_rol, 'usuarios' AS source
        FROM usuarios
        WHERE LOWER(correo) = ? AND activo = 1
        LIMIT 1`,
@@ -119,12 +119,12 @@ router.post('/forgot-password', async (req, res) => {
     await pool.query(
       `DELETE FROM password_reset_tokens
        WHERE used_at IS NULL AND ((user_id IS NOT NULL AND user_id = ?) OR (legacy_user_id IS NOT NULL AND legacy_user_id = ?))`,
-      [user.source === 'users' ? user.Id_usuario : null, user.source === 'usuario' ? user.Id_usuario : null],
+      [user.source === 'users' ? user.Id_usuario : null, user.source === 'usuarios' ? user.Id_usuario : null],
     );
     await pool.query(
       `INSERT INTO password_reset_tokens (user_id, legacy_user_id, token_hash, expires_at)
        VALUES (?, ?, ?, ?)`,
-      [user.source === 'users' ? user.Id_usuario : null, user.source === 'usuario' ? user.Id_usuario : null, tokenHash, expiresAt],
+      [user.source === 'users' ? user.Id_usuario : null, user.source === 'usuarios' ? user.Id_usuario : null, tokenHash, expiresAt],
     );
 
     const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
@@ -180,7 +180,7 @@ router.post('/reset-password', async (req, res) => {
     const passwordHash = await bcrypt.hash(contrasena, 12);
     const [result] = resetToken.user_id
       ? await connection.query('UPDATE users SET password_hash = ? WHERE id = ? AND is_active = 1', [passwordHash, resetToken.user_id])
-      : await connection.query('UPDATE usuario SET contrasena = ? WHERE Id_usuario = ? AND activo = 1', [passwordHash, resetToken.legacy_user_id]);
+      : await connection.query('UPDATE usuarios SET contrasena = ? WHERE id = ? AND activo = 1', [passwordHash, resetToken.legacy_user_id]);
     if (!result.affectedRows) {
       await connection.rollback();
       return res.status(400).json({ error: 'La cuenta ya no está disponible.' });
