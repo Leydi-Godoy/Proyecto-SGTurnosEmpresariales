@@ -1,0 +1,975 @@
+-- phpMyAdmin SQL Dump
+-- version 5.2.1
+-- https://www.phpmyadmin.net/
+--
+-- Servidor: 127.0.0.1
+-- Tiempo de generación: 15-09-2026 a las 14:20:13
+-- Versión del servidor: 10.4.32-MariaDB
+-- Versión de PHP: 8.2.12
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Base de datos: `sgturnos_empresas`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `aprobaciones`
+--
+
+CREATE TABLE `aprobaciones` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `solicitud_id` bigint(20) UNSIGNED NOT NULL,
+  `aprobador_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `decision` varchar(16) NOT NULL,
+  `comentario` text DEFAULT NULL,
+  `decidido_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `asignaciones_turno`
+--
+
+CREATE TABLE `asignaciones_turno` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `instancia_turno_id` bigint(20) UNSIGNED NOT NULL,
+  `empleado_id` bigint(20) UNSIGNED NOT NULL,
+  `asignado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `asignado_por` bigint(20) UNSIGNED DEFAULT NULL,
+  `estado` varchar(32) NOT NULL DEFAULT 'pendiente'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `disponibilidad`
+--
+
+CREATE TABLE `disponibilidad` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empleado_id` bigint(20) UNSIGNED NOT NULL,
+  `dia_semana` tinyint(3) UNSIGNED NOT NULL,
+  `desde_hora` time NOT NULL,
+  `hasta_hora` time NOT NULL,
+  `nota` text DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `documentos_solicitud`
+--
+
+CREATE TABLE `documentos_solicitud` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `solicitud_id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` bigint(20) UNSIGNED NOT NULL,
+  `nombre_archivo` varchar(512) NOT NULL,
+  `url_almacenamiento` varchar(2048) NOT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `empleados`
+--
+
+CREATE TABLE `empleados` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `usuario_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `empresa_id` bigint(20) UNSIGNED NOT NULL,
+  `codigo_empleado` varchar(64) DEFAULT NULL,
+  `especialidad_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `equipo_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `fecha_ingreso` date DEFAULT NULL,
+  `estado` varchar(32) NOT NULL DEFAULT 'activo',
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `empleados`
+--
+
+INSERT INTO `empleados` (`id`, `usuario_id`, `empresa_id`, `codigo_empleado`, `especialidad_id`, `equipo_id`, `fecha_ingreso`, `estado`, `creado_en`) VALUES
+(1, 69314718, 1, 'EMP1_69314718', 2, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(2, 70809010, 2, 'EMP2_70809010', 44, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(3, 71828182, 3, 'EMP3_71828182', 53, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(4, 73205080, 4, 'EMP4_73205080', 38, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(5, 77788899, 5, 'EMP5_77788899', 63, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(6, 80101476, 6, 'EMP6_80101476', 72, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(7, 80901020, 7, 'EMP7_80901020', 33, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(8, 82012513, 8, 'EMP8_82012513', 82, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(9, 83147098, 1, 'EMP1_83147098', 2, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(10, 87654321, 2, 'EMP2_87654321', 44, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(11, 95462288, 3, 'EMP3_95462288', 53, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(12, 95957217, 4, 'EMP4_95957217', 38, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(13, 99001122, 5, 'EMP5_99001122', 63, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(14, 99887766, 6, 'EMP6_99887766', 72, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(15, 99900011, 7, 'EMP7_99900011', 33, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(16, 123456123, 8, 'EMP8_123456123', 82, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(17, 1090807123, 1, 'EMP1_1090807123', 2, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(18, 1101101101, 2, 'EMP2_1101101101', 44, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(19, 1101246975, 3, 'EMP3_1101246975', 53, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(20, 1102102101, 4, 'EMP4_1102102101', 38, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(21, 1103103101, 5, 'EMP5_1103103101', 63, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(22, 1104104101, 6, 'EMP6_1104104101', 72, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(23, 1104774847, 7, 'EMP7_1104774847', 33, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(24, 1105105104, 8, 'EMP8_1105105104', 82, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(25, 1107107107, 1, 'EMP1_1107107107', 2, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(26, 1108108104, 2, 'EMP2_1108108104', 44, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(27, 1109109101, 3, 'EMP3_1109109101', 53, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(28, 1110101110, 4, 'EMP4_1110101110', 38, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(29, 1110110111, 5, 'EMP5_1110110111', 63, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(30, 1110110112, 6, 'EMP6_1110110112', 72, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(31, 1110110113, 7, 'EMP7_1110110113', 33, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(32, 1110110114, 8, 'EMP8_1110110114', 82, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(33, 1110110115, 1, 'EMP1_1110110115', 2, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(34, 1110110116, 2, 'EMP2_1110110116', 44, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(35, 1110110117, 3, 'EMP3_1110110117', 53, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(36, 1110110118, 4, 'EMP4_1110110118', 38, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(37, 1110110142, 5, 'EMP5_1110110142', 63, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(38, 1434389742, 6, 'EMP6_1434389742', 72, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(39, 6546341122, 7, 'EMP7_6546341122', 33, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(40, 9686711199, 8, 'EMP8_9686711199', 82, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(41, 123123456321, 1, 'EMP1_123123456321', 2, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `empresas`
+--
+
+CREATE TABLE `empresas` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `nombre` varchar(255) NOT NULL,
+  `zona_horaria` varchar(64) DEFAULT 'UTC',
+  `plan_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_en` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `empresas`
+--
+
+INSERT INTO `empresas` (`id`, `nombre`, `zona_horaria`, `plan_id`, `creado_en`, `actualizado_en`) VALUES
+(1, 'Empresa Demo 1', 'America/Bogota', 1, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
+(2, 'Comercial Norte', 'America/Chicago', 1, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
+(3, 'Tienda Local', 'America/Argentina/Buenos_Aires', 1, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
+(4, 'Servicios Vecinos', 'America/Bogota', 1, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
+(5, 'Oficina Pyme', 'America/New_York', 1, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
+(6, 'Solutions Medio', 'Europe/Madrid', 2, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
+(7, 'Operaciones Sur', 'America/Santiago', 2, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
+(8, 'Corporativo Premium', 'Europe/London', 3, '2026-09-14 21:20:32', '2026-09-14 21:20:32');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `especialidades`
+--
+
+CREATE TABLE `especialidades` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` bigint(20) UNSIGNED NOT NULL,
+  `codigo` varchar(50) NOT NULL,
+  `nombre` varchar(128) NOT NULL,
+  `descripcion` text DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `especialidades`
+--
+
+INSERT INTO `especialidades` (`id`, `empresa_id`, `codigo`, `nombre`, `descripcion`, `creado_en`) VALUES
+(2, 1, 'medicina_general', 'Medicina General', 'Atención primaria y consulta general', '2026-09-14 23:35:10'),
+(33, 7, 'psicología', 'Psicología', 'Atención psicológica y terapias', '2026-09-14 23:46:07'),
+(38, 4, 'vigilancia', 'Vigilancia', 'Personal de vigilancia y seguridad por turnos', '2026-09-14 23:46:07'),
+(44, 2, 'call_center', 'Call Center', 'Atención telefónica 24/7, turnos rotativos', '2026-09-14 23:46:07'),
+(53, 3, 'recepción', 'Recepción', 'Atención en recepción y control de visitas (turnos)', '2026-09-14 23:46:07'),
+(63, 5, 'limpieza', 'Limpieza', 'Servicios de limpieza por turnos', '2026-09-14 23:46:07'),
+(72, 6, 'mantenimiento', 'Mantenimiento', 'Tareas de mantenimiento preventivo y correctivo', '2026-09-14 23:46:07'),
+(82, 8, 'monitoreo_cctv', 'Monitoreo CCTV', 'Vigilancia por cámaras y monitoreo remoto', '2026-09-14 23:46:07');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `instancias_turno`
+--
+
+CREATE TABLE `instancias_turno` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `plantilla_id` bigint(20) UNSIGNED NOT NULL,
+  `fecha` date NOT NULL,
+  `inicio_fecha_hora` datetime NOT NULL,
+  `fin_fecha_hora` datetime NOT NULL,
+  `sede_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `creado_por` bigint(20) UNSIGNED DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `notificaciones`
+--
+
+CREATE TABLE `notificaciones` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `usuario_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `canal` varchar(16) NOT NULL,
+  `carga` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`carga`)),
+  `enviado_en` timestamp NULL DEFAULT NULL,
+  `estado_envio` varchar(32) NOT NULL DEFAULT 'pendiente',
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `planes`
+--
+
+CREATE TABLE `planes` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `nombre` varchar(128) NOT NULL,
+  `caracteristicas` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`caracteristicas`)),
+  `precio` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_en` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `planes`
+--
+
+INSERT INTO `planes` (`id`, `nombre`, `caracteristicas`, `precio`, `creado_en`, `actualizado_en`) VALUES
+(1, 'Básico', '{\"descripcion\": \"Prueba 30 días; soporte básico; funciones esenciales\"}', 0.00, '2026-09-14 21:15:53', '2026-09-14 21:15:53'),
+(2, 'Mediano', '{\"descripcion\": \"Funciones avanzadas; reportes; soporte estándar\"}', 49.90, '2026-09-14 21:15:53', '2026-09-14 21:15:53'),
+(3, 'Premium', '{\"descripcion\": \"Integraciones; SLA; soporte prioritario\"}', 149.90, '2026-09-14 21:15:53', '2026-09-14 21:15:53');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `plantillas_turno`
+--
+
+CREATE TABLE `plantillas_turno` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` bigint(20) UNSIGNED NOT NULL,
+  `nombre` varchar(255) NOT NULL,
+  `hora_inicio` time NOT NULL,
+  `hora_fin` time NOT NULL,
+  `duracion_minutos` int(10) UNSIGNED NOT NULL,
+  `es_nocturno` tinyint(1) NOT NULL DEFAULT 0,
+  `patron_recurrencia` varchar(128) DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `registros_auditoria`
+--
+
+CREATE TABLE `registros_auditoria` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `usuario_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `accion` varchar(128) NOT NULL,
+  `tabla_objetivo` varchar(128) DEFAULT NULL,
+  `id_objetivo` bigint(20) UNSIGNED DEFAULT NULL,
+  `detalles` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`detalles`)),
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `roles`
+--
+
+CREATE TABLE `roles` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `nombre` varchar(64) NOT NULL,
+  `descripcion` text DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `codigo` varchar(32) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `roles`
+--
+
+INSERT INTO `roles` (`id`, `nombre`, `descripcion`, `creado_en`, `codigo`) VALUES
+(1, 'Super Administrador', 'Acceso total', '2026-09-14 22:04:25', 'supad1'),
+(2, 'Administrador de empresa', 'Administrador de la empresa', '2026-09-14 22:04:25', 'ademp2'),
+(3, 'Planificador', 'Planificador de turnos', '2026-09-14 22:04:25', 'plani3'),
+(4, 'Supervisor', 'Supervisor de la empresa', '2026-09-14 22:04:25', 'supvi4'),
+(5, 'Empleado', 'Empleado estándar', '2026-09-14 22:04:25', 'emple5');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `sedes`
+--
+
+CREATE TABLE `sedes` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` bigint(20) UNSIGNED NOT NULL,
+  `nombre` varchar(255) NOT NULL,
+  `direccion` varchar(512) DEFAULT NULL,
+  `zona_horaria` varchar(64) DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `sedes`
+--
+
+INSERT INTO `sedes` (`id`, `empresa_id`, `nombre`, `direccion`, `zona_horaria`, `creado_en`) VALUES
+(1, 1, 'Sede Central - Empresa 1', 'Calle Principal 100', NULL, '2026-09-14 23:29:16'),
+(2, 2, 'Sede Central - Empresa 2', 'Av. Secundaria 200', NULL, '2026-09-14 23:29:16'),
+(3, 3, 'Sede Central - Empresa 3', 'Calle 3 #45', NULL, '2026-09-14 23:29:16'),
+(4, 4, 'Sede Central - Empresa 4', 'Av. 4 #88', NULL, '2026-09-14 23:29:16'),
+(5, 5, 'Sede Central - Empresa 5', 'Calle 5 #12', NULL, '2026-09-14 23:29:16'),
+(6, 6, 'Sede Central - Empresa 6', 'Av. 6 #34', NULL, '2026-09-14 23:29:16'),
+(7, 7, 'Sede Central - Empresa 7', 'Calle 7 #56', NULL, '2026-09-14 23:29:16'),
+(8, 8, 'Sede Central - Empresa 8', 'Av. 8 #78', NULL, '2026-09-14 23:29:16');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `solicitudes_novedad`
+--
+
+CREATE TABLE `solicitudes_novedad` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empleado_id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` bigint(20) UNSIGNED NOT NULL,
+  `tipo` varchar(64) NOT NULL,
+  `fecha_inicio` date NOT NULL,
+  `fecha_fin` date DEFAULT NULL,
+  `motivo` text DEFAULT NULL,
+  `estado` varchar(32) NOT NULL DEFAULT 'pendiente',
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `usuarios`
+--
+
+CREATE TABLE `usuarios` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` bigint(20) UNSIGNED NOT NULL,
+  `correo` varchar(320) NOT NULL,
+  `primer_nombre` varchar(128) DEFAULT NULL,
+  `segundo_nombre` varchar(128) DEFAULT NULL,
+  `primer_apellido` varchar(128) DEFAULT NULL,
+  `segundo_apellido` varchar(128) DEFAULT NULL,
+  `contrasena` char(128) NOT NULL,
+  `telefono` varchar(30) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `esta_activo` tinyint(1) NOT NULL DEFAULT 1,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_en` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp(),
+  `id_rol` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `usuarios`
+--
+
+INSERT INTO `usuarios` (`id`, `empresa_id`, `correo`, `primer_nombre`, `segundo_nombre`, `primer_apellido`, `segundo_apellido`, `contrasena`, `telefono`, `activo`, `esta_activo`, `creado_en`, `actualizado_en`, `id_rol`) VALUES
+(11122, 1, 'veronicalara@sgturnos.com', 'Veronica', 'Luciana', 'Lara', 'Carranza', '$2a$12$NKJesdn2mmCLr8jR6ZaoNuKDcK1vAHqAcN2I7e/hRl4lMM8oYh7dW', NULL, 1, 1, '2026-09-15 00:00:07', '2026-09-15 12:02:43', 2),
+(10203040, 2, 'rosajimenez@sgturnos.com', 'Rosa', 'Magnolia', 'Jimenez', 'Tafur', '$2a$12$0eBi7KhzCDAphEcIoH0bT.86L1t48lO0WDWueapKQ3nu328ljttHG', NULL, 1, 1, '2026-09-15 00:00:08', '2026-09-15 12:02:43', 2),
+(10293847, 3, 'oscarcampos@sgturnos.com', 'Oscar', 'Santiago', 'Campos', 'Ovalle', '$2a$12$dFwLrgrckIAQf3L3OsY12O9u0Tjephmz7h5kDciDNr4c61GfXoZL6', NULL, 1, 1, '2026-09-15 00:00:08', '2026-09-15 12:02:44', 2),
+(10439581, 4, 'beatrizmendoza@sgturnos.com', 'Beatriz', 'Ana', 'Mendoza', 'Trump', '$2a$12$67jPgk80hS4fzRFVzYGwTOoQ7c3sE90fbx4xE5Tige2E1KiCiCoHO', NULL, 1, 1, '2026-09-15 00:00:09', '2026-09-15 12:02:45', 2),
+(12233445, 5, 'victorguerrero@sgturnos.com', 'Victor', 'Pablo', 'Guerrero', 'Libano', '$2a$12$ejQC7rQC3Q.LS0cWYhqsGejPsOIoU4SnWU/jL.C2ouI56ymZXUOKq', NULL, 1, 1, '2026-09-15 00:00:09', '2026-09-15 12:02:45', 2),
+(13579246, 6, 'pedrosanchez@sgturnos.com', 'Pedro', 'Camilo', 'Sanchez', 'Tolosa', '$2a$12$Wnw7c6WyiJ67/j1MPvHleOGUSIIokcAq98L98n.7YWc4EtJNRJTDq', NULL, 1, 1, '2026-09-15 00:00:10', '2026-09-15 12:02:45', 2),
+(14142135, 7, 'isabelmunoz@sgturnos.com', 'Isabel', 'Alejandra', 'Muñoz', 'Aguilar', '$2a$12$eluTSsqVh7vNsKHzB8gxXOcJ6PdkLKgK4b2AqUR5AHi2CSKXLQVDm', NULL, 1, 1, '2026-09-15 00:00:10', '2026-09-15 12:02:46', 2),
+(16180339, 8, 'miguelruiz@sgturnos.com', 'Miguel', 'Camilo', 'Ruiz', 'Treller', '$2a$12$6ReIcMtXMM.zerDzeoXvjOdjSy.CV7cBSLGVDVF50HH01kIF5T2Ku', NULL, 1, 1, '2026-09-15 00:00:10', '2026-09-15 12:02:47', 2),
+(20304050, 1, 'fernandoluna@sgturnos.com', 'Fernando', 'Luis', 'Luna', 'Rayo', '$2a$12$3x.jIXjnYQMVqGWacONNWulHO8w9OhCoJ4bc96S6DbcA6qFAsMThy', NULL, 1, 1, '2026-09-15 00:00:11', '2026-09-15 12:02:47', 4),
+(24681357, 2, 'lauraramirez@sgturnos.com', 'Laura', 'Andrea', 'Ramirez', 'Valles', '$2a$12$CdpjaksSNDybzV2FRT/E8.FpqUYV/KDOmMLFl5x1qsREOyoTnDxEa', NULL, 1, 1, '2026-09-15 00:00:12', '2026-09-15 12:02:48', 4),
+(27182818, 3, 'elenavargas@sgturnos.com', 'Elena', 'Sofia', 'Vargas', 'Brush', '$2a$12$EsGIctWgqrTmyIMZJyLChOldBRxyHTGiXZCiSjFBZgR9PwFtbxrAC', NULL, 1, 1, '2026-09-15 00:00:12', '2026-09-15 12:02:48', 4),
+(29979245, 4, 'patricianavarro@sgturnos.com', 'Patricia', 'Nenitza', 'Navarro', 'Palma', '$2a$12$WIP5nrIzWfME1ljKAOwjE.YBlu/Xwjm5HJIzzoHeEvye9T2Z1VLl.', NULL, 1, 1, '2026-09-15 00:00:13', '2026-09-15 12:02:48', 4),
+(30405060, 5, 'eduardosoto@sgturnos.com', 'Eduardo', 'Felipe', 'Soto', 'Cardozo', '$2a$12$ps.Mv07N65gs8jWMrQMAt.ME2E1dFtv/8mHFU2ZtwEvwxKRBlV2ii', NULL, 1, 1, '2026-09-15 00:00:13', '2026-09-15 12:02:49', 4),
+(31415926, 6, 'diegotorres@sgturnos.com', 'Diego', 'David', 'Torres', 'Gomez', '$2a$12$oQBCa0M9.vgj3kv210k2g.ov1I65XQP4AuKotzFsZz0bS/17ZZDr.', NULL, 1, 1, '2026-09-15 00:00:13', '2026-09-15 12:02:49', 4),
+(40506070, 7, 'albertocruz@sgturnos.com', 'Alberto', 'Emiro', 'Cruz', 'Hunt', '$2a$12$U.wagz1PBEN9ZyrJB/vyHuEmnXWfs2s3raOj5rAUbHSGTAxcqNwtK', NULL, 1, 1, '2026-09-15 00:00:14', '2026-09-15 12:02:50', 4),
+(44455566, 8, 'paulamolina@sgturnos.com', 'Paula', 'Gabriela', 'Molina', 'Terrence', '$2a$12$oJyIp234zvp9/mW2TI0uhO3M1o5qRxifyavzju/OVgpOcArDJk7La', NULL, 1, 1, '2026-09-15 00:00:14', '2026-09-15 12:02:50', 4),
+(48273377, 1, 'dantegebel@sgturnos.com', 'Dante', 'jose', 'Gebel', 'Urrutia', '$2a$12$O3h3thfvnLyvGn0pYEafPeMWcY.A7P3pBe.wOeCoiIa2xBtskYqCe', NULL, 1, 1, '2026-09-15 00:00:15', '2026-09-15 12:02:51', 3),
+(50288419, 2, 'teresacastro@sgturnos.com', 'Teresa', 'Maria', 'Castro', 'Lopez', '$2a$12$Xd4GisLa5Eq3CmsX92C/IeYeDI/VM6DUhBozfjiXa4s5cHGYWNq2m', NULL, 1, 1, '2026-09-15 00:00:15', '2026-09-15 12:02:51', 3),
+(55667788, 3, 'olgaespinoza@sgturnos.com', 'Olga', 'Shakira', 'Espinoza', 'Castrol', '$2a$12$Ti35e4LCsTnWVDoFEuWbNO2sztasU7iI4G/B8mnW8lokcP5Bmu6Be', NULL, 1, 1, '2026-09-15 00:00:16', '2026-09-15 12:02:52', 3),
+(56473829, 4, 'luciavaldez@sgturnos.com', 'Lucia', 'Daniela', 'Valdez', 'Florez', '$2a$12$97f5NlS7/XcTnp2PROtU6e23NMT4qfYkqmm7YOWVAAsXRhZPL1hvq', NULL, 1, 1, '2026-09-15 00:00:16', '2026-09-15 12:02:52', 3),
+(57721566, 5, 'javiermoreno@sgturnos.com', 'Javier', 'Francisco', 'Moreno', 'Daza', '$2a$12$ITAVKBLePr.eIdYHZUAQhuFb8FYp2K/BVT1dGXmupaqIXcYIZz34m', NULL, 1, 1, '2026-09-15 00:00:17', '2026-09-15 12:02:53', 3),
+(60708090, 6, 'monicaparedes@sgturnos.com', 'Monica', 'Lucia', 'Paredes', 'Camargo', '$2a$12$dr5NAJzNQOHfiIJsqRCBnOm/VwjxHHOdF4zdGMHiubWjhPVUVyuQ6', NULL, 1, 1, '2026-09-15 00:00:17', '2026-09-15 12:02:53', 3),
+(66677788, 7, 'claudiaquintana@sgturnos.com', 'Claudia', 'Marcela', 'Quintana', 'Fajardo', '$2a$12$0.SntBBwx2Wfix2m2NPMrutaKIPmVsokFtyYQjf3m1pJcUNeSNgr.', NULL, 1, 1, '2026-09-15 00:00:17', '2026-09-15 12:02:54', 3),
+(66778899, 8, 'sofiahernandez@sgturnos.com', 'Sofia', '', 'Hernandez', NULL, '$2a$12$i/kIcOGPrTwF.S1EqXd13eAwSN3wCmGTEOkBTsPWmRYm7E1jNE8gG', NULL, 1, 1, '2026-09-15 00:00:18', '2026-09-15 12:02:54', 3),
+(69314718, 1, 'franciscoromero@sgturnos.com', 'Francisco', 'Javier', 'Romero', 'Caldas', '$2a$12$lvRAA3KBDd5dc6Y5lHCAWezJJHvpwxlqYz5iRt9iAYdVe89x.uv7a', NULL, 1, 1, '2026-09-15 00:00:18', '2026-09-15 12:02:56', 5),
+(70809010, 2, 'gabrielavega@sgturnos.com', 'Gabriela', 'Filipa', 'Vega', 'Alarcon', '$2a$12$P26jtxt.kIWaGN7pZnV4MON4v60YzaS0AJst4R6WA4WHNqd2vEh5u', NULL, 1, 1, '2026-09-15 00:00:19', '2026-09-15 12:02:57', 5),
+(71828182, 3, 'carmendiaz@sgturnos.com', 'Carmen', 'Isabelina', 'Diaz', 'Capera', '$2a$12$/g./CD/lQ5B02ZmwratHE.DUCR90DshbfzwvR.ZKjekh4pSMqLx3K', NULL, 1, 1, '2026-09-15 00:00:19', '2026-09-15 12:02:57', 5),
+(73205080, 4, 'antonioortega@sgturnos.com', 'Antonio', 'Jose', 'Ortega', 'Finch', '$2a$12$WrX0aGU9Us0mgJBPk7i9KOOPi2iSJ2xBZK3qgT2ZUSqJgQZRd1JJ2', NULL, 1, 1, '2026-09-15 00:00:20', '2026-09-15 12:02:58', 5),
+(77788899, 5, 'ricardopena@sgturnos.com', 'Ricardo', 'Hasam', 'Peña', 'Gareca', '$2a$12$SaxsS6QcGvIHCKuMhxGiquEB6B3RsxqeFFG7zSD17daTxrPd43NB.', NULL, 1, 1, '2026-09-15 00:00:20', '2026-09-15 12:02:58', 5),
+(80101476, 6, 'edissontaborda@sgturnos.com', 'Edisson', 'Andrés', 'Taborda', 'Reyes', '$2a$12$t.2hb75S2PO4KXTj8N2KzORQt8rUwc62z4jAMY9e6nrEqeygZM5.S', NULL, 1, 1, '2026-09-15 00:00:21', '2026-09-15 12:02:59', 1),
+(80901020, 7, 'silviarios@sgturnos.com', 'Silvia', 'Maria', 'Rios', 'Patarroyo', '$2a$12$5XDtzRy9YNGJ4RD.6qCJpuqicHuh11cVdxwxyqEUEtpQmx0vsKpD.', NULL, 1, 1, '2026-09-15 00:00:21', '2026-09-15 12:02:59', 5),
+(82012513, 8, 'nataliaflores@sgturnos.com', 'Natalia', 'Nikol', 'Flores', 'Catalan', '$2a$12$HttC3JV.YwO6Z/w6UJsQIOjqIjLIRSwz6e/82p8uMrg1po3MRsskW', NULL, 1, 1, '2026-09-15 00:00:21', '2026-09-15 12:03:00', 5),
+(83147098, 1, 'robertosilva@sgturnos.com', 'Roberto', 'Carlos', 'Silva', 'Clark', '$2a$12$Ec/A0sSOOPKgmbEqZa7xWeoHxDBFb7y.jbjUcoWrxkfztK85WU5WC', NULL, 1, 1, '2026-09-15 00:00:22', '2026-09-15 12:03:00', 5),
+(87654321, 2, 'marialopez@sgturnos.com', 'Maria', NULL, 'Lopez', NULL, '$2a$12$cQqplzP0s71MQamY2iEdJOxfcL57DAURQQLyZdEtj3vQYE59916fa', NULL, 1, 1, '2026-09-15 00:00:22', '2026-09-15 12:03:01', 5),
+(95462288, 3, 'susanaruiz@sgturnos.com', 'Susana', 'cintia', 'Ruiz', 'Cruz', '$2a$12$D5iytk.R9L6vsgxBjYPGleX6lRGvxEqZrHMUcECM7WWhLrQbTWdEO', NULL, 1, 1, '2026-09-15 00:00:23', '2026-09-15 12:03:02', 5),
+(95957217, 4, 'sergioreyes@sgturnos.com', 'Sergio', 'Andres', 'Reyes', 'Segura', '$2a$12$Z84LxXJigibCljZzYB3/GeFHM/fcE0/tLthOJI8LI6kMgANA6AGau', NULL, 1, 1, '2026-09-15 00:00:23', '2026-09-15 12:03:03', 5),
+(99001122, 5, 'raulmedina@sgturnos.com', 'Raul', 'Antonio', 'Medina', 'Gutierrez', '$2a$12$.7Iuk4T15b7OMNhYbUSkWu8kwwPENxUzflQbbQXavm3zbgYrRLzfG', NULL, 1, 1, '2026-09-15 00:00:24', '2026-09-15 12:03:04', 5),
+(99887766, 6, 'anagomez@sgturnos.com', 'Ana', 'Gomez', 'Gomez', NULL, '$2a$12$uU0KNDQuFfRvSkNtmjZZM.TUEPfpZnUP6kQrtP124bRD10Y4qncwm', NULL, 1, 1, '2026-09-15 00:00:24', '2026-09-15 12:03:05', 5),
+(99900011, 7, 'estebansalinas@sgturnos.com', 'Esteban', 'Pablo', 'Salinas', 'Morgan', '$2a$12$jVvL51Z3Gs7KBfzA1iu3BumCTOxgJyRr7IvJCrTsXYm4Ng2WuD5PC', NULL, 1, 1, '2026-09-15 00:00:25', '2026-09-15 12:03:06', 5),
+(123456123, 8, 'kenshinkido@sgturnos.com', 'Kenshin', 'Goku', 'Kido', 'Himura', '$2a$12$x3E5YTcLIKPnSDoRuDcMAu1VIquKk8v2FeiiJWavQKQDqDhtjIOGC', NULL, 1, 1, '2026-09-15 00:00:25', '2026-09-15 12:03:07', 5),
+(1090807123, 1, 'leonardodicaprio@sgturnos.com', 'Leonardo', 'Ramiro', 'Dicaprio', 'Sosavita', '$2a$12$eV0jZr0lEUJKeF.0s3HbqOMCtdXZ95XjBbCXMFvVMklT.UZG97he2', NULL, 1, 1, '2026-09-15 00:00:25', '2026-09-15 12:03:09', 5),
+(1101101101, 2, 'yuliydaza@sgturnos.com', 'Yuliy', 'Paola', 'Daza', 'Oviedo', '$2a$12$I5KZ8LPR.3brpXgclWmgR.KxjO49hbePI4WR7AGjAkx4TNpwJ3bRa', NULL, 1, 1, '2026-09-15 00:00:26', '2026-09-15 12:03:10', 5),
+(1101246975, 3, 'ramonjirafales@sgturnos.com', 'Ramon', 'Federico', 'Jirafales', 'Barriga', '$2a$12$Kn11crZ91HHPSk1V9N7NdeFqHaYyf/e0Puq7leeID0ilec3O4.Stm', NULL, 1, 1, '2026-09-15 00:00:26', '2026-09-15 12:03:11', 5),
+(1102102101, 4, 'melissasolano@sgturnos.com', 'Melissa', 'Andrea', 'Solano', 'Patiño', '$2a$12$gy/Zf/i9j3kuS3ClpMb9nuoqq62Mlmff.HwGH/fbq/ibJ4ksS6ZFy', NULL, 1, 1, '2026-09-15 00:00:27', '2026-09-15 12:03:12', 5),
+(1103103101, 5, 'angelicaprada@sgturnos.com', 'Angelica', 'Milena', 'Prada', 'Cañón', '$2a$12$j4kezMnhHL6A5HyuzRH9me5dVgQAtQkSRQ61qVlz.ixMLkqeB2HmG', NULL, 1, 1, '2026-09-15 00:00:27', '2026-09-15 12:03:12', 5),
+(1104104101, 6, 'jesusbeltran@sgturnos.com', 'Jesús', 'Daniel', 'Beltrán', 'Rodríguez', '$2a$12$sasqPIMXRLOIeqieG15ar.wFPRvOlUNwjTl0QMqsrj9/5QUgsQ9G.', NULL, 1, 1, '2026-09-15 00:00:28', '2026-09-15 12:03:14', 5),
+(1104774847, 7, 'leydigodoy@sgturnos.com', 'Leydi', 'Cecilia', 'Godoy', 'Ortiz', '$2a$12$kV8rHyebd9TL0884au/eO.optpcg8LIcr7aSnQrKpiYZ6GT.PlnRW', NULL, 1, 1, '2026-09-15 00:00:28', '2026-09-15 12:03:15', 1),
+(1105105104, 8, 'carlosrodriguez@sgturnos.com', 'Carlos', 'Andrés', 'Rodríguez', 'Ochoa', '$2a$12$zPInPqXFbWNvvVIVGNxNcOwkudbT4YNTIJLYjtCoVCmE4sDNr5Yqm', NULL, 1, 1, '2026-09-15 00:00:28', '2026-09-15 12:03:15', 5),
+(1107107107, 1, 'jennymartinez@sgturnos.com', 'Jenny', 'Andrea', 'Martinez', 'Heredia', '$2a$12$oTKO4fppna4dhn3PQEgWwuEwYsy5TxShmgJHQzGboGXxuEizHEKZi', NULL, 1, 1, '2026-09-15 00:00:29', '2026-09-15 12:03:17', 5),
+(1108108104, 2, 'mariabarajas@sgturnos.com', 'María', 'Camila', 'Barajas', 'López', '$2a$12$stN6Abs8aeKK8HAKnWCgXOya4HNOSbEIT4e4txw505YldYZzorFZO', NULL, 1, 1, '2026-09-15 00:00:29', '2026-09-15 12:03:17', 5),
+(1109109101, 3, 'armandosilva@sgturnos.com', 'Armando', 'Stiven', 'Silva', 'Rodríguez', '$2a$12$UueRt/DXQLAougwUGkBY2OKW1Amz5Ftcohj9prf8KBNmRKlomk0rG', NULL, 1, 1, '2026-09-15 00:00:30', '2026-09-15 12:03:18', 5),
+(1110101110, 4, 'monicapinilla@sgturnos.com', 'Mónica', 'Patricia', 'Pinilla', 'Castro', '$2a$12$RTVIZUK8QfdgyeTPS8uno.MDadVmygh/CjBA0oYrfJEdtXz9N7Qjy', NULL, 1, 1, '2026-09-15 00:00:30', '2026-09-15 12:03:20', 5),
+(1110110111, 5, 'camilavergara@sgturnos.com', 'Camila', 'Andrea', 'Vergara', 'Caro', '$2a$12$VZL8je/Z4SQeItTifLI1EeDS4/HNlbibwtH2qIc4O5r0QeGD34dpe', NULL, 1, 1, '2026-09-15 00:00:31', '2026-09-15 12:03:20', 5),
+(1110110112, 6, 'andrescastro@sgturnos.com', 'Andrés', 'Felipe', 'Castro', 'Polo', '$2a$12$RBKSYUN7wKmO36zs4Gj8RO3Xf0yGe/oyhAgwIq8vRytvXUpLAgOTK', NULL, 1, 1, '2026-09-15 00:00:31', '2026-09-15 12:03:21', 5),
+(1110110113, 7, 'juliaaraujo@sgturnos.com', 'Julia', 'Fernanda', 'Araujo', 'Henao', '$2a$12$hHqbf412TzewJawtus/L4.M4oHnfwN2XMYgmMO0WYImIAKyfacY5i', NULL, 1, 1, '2026-09-15 00:00:32', '2026-09-15 12:03:23', 5),
+(1110110114, 8, 'juanalopez@sgturnos.com', 'Juana', 'Carolina', 'López', 'Montes', '$2a$12$HI7QhxgFjdGRaHN1HHIgbefLtyQFDpvw6Bw7Jpzxz.PJJ4UXrifZC', NULL, 1, 1, '2026-09-15 00:00:32', '2026-09-15 12:03:23', 5),
+(1110110115, 1, 'danielacarvajal@sgturnos.com', 'Daniela', 'Carolina', 'Carvajal', 'Rio', '$2a$12$jrm4pRbzSVLvlQI3GWHmVeHs8lWdTqWpDTgNokZLi1LofyM3MoWRy', NULL, 1, 1, '2026-09-15 00:00:32', '2026-09-15 12:03:24', 5),
+(1110110116, 2, 'veronicacantor@sgturnos.com', 'Verónica', 'Sofia', 'Cantor', 'Jiménez', '$2a$12$.rx5NxmHBE/r.zWMfFxY4ua6o3igHFXkenoZ/RGEJlLErmZ2TBC6.', NULL, 1, 1, '2026-09-15 00:00:33', '2026-09-15 12:03:24', 5),
+(1110110117, 3, 'carlamunoz@sgturnos.com', 'Carla', 'Antonia', 'Muñoz', 'Álvarez', '$2a$12$umcBwsYiwvbWt19NQ68tWecODYICWsJkbO.ShfxdZ11Yga308bXOO', NULL, 1, 1, '2026-09-15 00:00:33', '2026-09-15 12:03:25', 5),
+(1110110118, 4, 'patriciapaternina@sgturnos.com', 'Patricia', NULL, 'Paternina', NULL, '$2a$12$n7n9nr7by81smb1mfMRLfeGd4pjm3wZ8eTnUR15x19tAlWxNfJx5q', NULL, 1, 1, '2026-09-15 00:00:34', '2026-09-15 12:03:26', 5),
+(1110110142, 5, 'yajairarangel@sgturnos.com', 'Yajaira', 'Paola', 'Rangel', 'Roa', '$2a$12$XhagGbcQ2Ta9fSrGd/sYYOHMnsy3TrRkqU2YJuw7na1O7ALZS0FO2', NULL, 1, 1, '2026-09-15 00:00:34', '2026-09-15 12:03:27', 5),
+(1434389742, 6, 'aioriadeleo@sgturnos.com', 'Aioria', 'De', 'Leo', 'Kido', '$2a$12$gnHXeTRjyWjMgJSNTjyRfeLjhW8RbUvK.bKuh/KWvkkAJR0ZrBRnS', NULL, 1, 1, '2026-09-15 00:00:35', '2026-09-15 12:03:27', 5),
+(6546341122, 7, 'conicamelo@sgturnos.com', 'Coni', 'Luz', 'Camelo', 'Frias', '$2a$12$xBP5A2PeEGw3sBJpj0f02.qgnm7T6l6nSIM3h5gIsgQjJXLMdnjhu', NULL, 1, 1, '2026-09-15 00:00:35', '2026-09-15 12:03:28', 5),
+(9686711199, 8, 'mirandafula@sgturnos.com', 'Miranda', 'Catrina', 'Fula', 'Cortez', '$2a$12$3umu5fJ/AOb1JxGcGIjMGO.lhhZY5CMGvayk.ztGM9utqoIgT8gES', NULL, 1, 1, '2026-09-15 00:00:36', '2026-09-15 12:03:29', 5),
+(123123456321, 1, 'sagageminis@sgturnos.com', 'Saga', 'De', 'Geminis', 'Kido', '$2a$12$xookV9Bgu0S2rp9VfNyqMe4GHCkiH9dHj/R9/KfOTN1KokaC4tt6a', NULL, 1, 1, '2026-09-15 00:00:36', '2026-09-15 12:03:29', 5);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `usuario_roles`
+--
+
+CREATE TABLE `usuario_roles` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `usuario_id` bigint(20) UNSIGNED NOT NULL,
+  `rol_id` bigint(20) UNSIGNED NOT NULL,
+  `alcance` varchar(32) NOT NULL DEFAULT 'empresa',
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `usuario_roles`
+--
+
+INSERT INTO `usuario_roles` (`id`, `usuario_id`, `rol_id`, `alcance`, `creado_en`) VALUES
+(1, 11122, 2, 'empresa', '2026-09-14 22:10:54'),
+(2, 10203040, 2, 'empresa', '2026-09-14 22:10:54'),
+(3, 10293847, 2, 'empresa', '2026-09-14 22:10:54'),
+(4, 10439581, 2, 'empresa', '2026-09-14 22:10:54'),
+(5, 12233445, 2, 'empresa', '2026-09-14 22:10:54'),
+(6, 13579246, 2, 'empresa', '2026-09-14 22:10:54'),
+(7, 14142135, 2, 'empresa', '2026-09-14 22:10:54'),
+(8, 16180339, 2, 'empresa', '2026-09-14 22:10:54'),
+(9, 20304050, 4, 'empresa', '2026-09-14 22:10:54'),
+(10, 24681357, 4, 'empresa', '2026-09-14 22:10:54'),
+(11, 27182818, 4, 'empresa', '2026-09-14 22:10:54'),
+(12, 29979245, 4, 'empresa', '2026-09-14 22:10:54'),
+(13, 30405060, 4, 'empresa', '2026-09-14 22:10:54'),
+(14, 31415926, 4, 'empresa', '2026-09-14 22:10:54'),
+(15, 40506070, 4, 'empresa', '2026-09-14 22:10:54'),
+(16, 44455566, 4, 'empresa', '2026-09-14 22:10:54'),
+(17, 48273377, 3, 'empresa', '2026-09-14 22:10:54'),
+(18, 50288419, 3, 'empresa', '2026-09-14 22:10:54'),
+(19, 55667788, 3, 'empresa', '2026-09-14 22:10:54'),
+(20, 56473829, 3, 'empresa', '2026-09-14 22:10:54'),
+(21, 57721566, 3, 'empresa', '2026-09-14 22:10:54'),
+(22, 60708090, 3, 'empresa', '2026-09-14 22:10:54'),
+(23, 66677788, 3, 'empresa', '2026-09-14 22:10:54'),
+(24, 66778899, 3, 'empresa', '2026-09-14 22:10:54'),
+(25, 69314718, 5, 'empresa', '2026-09-14 22:10:54'),
+(26, 70809010, 5, 'empresa', '2026-09-14 22:10:54'),
+(27, 71828182, 5, 'empresa', '2026-09-14 22:10:54'),
+(28, 73205080, 5, 'empresa', '2026-09-14 22:10:54'),
+(29, 77788899, 5, 'empresa', '2026-09-14 22:10:54'),
+(30, 80101476, 5, 'empresa', '2026-09-14 22:10:54'),
+(31, 80901020, 5, 'empresa', '2026-09-14 22:10:54'),
+(32, 82012513, 5, 'empresa', '2026-09-14 22:10:54'),
+(33, 83147098, 5, 'empresa', '2026-09-14 22:10:54'),
+(34, 87654321, 5, 'empresa', '2026-09-14 22:10:54'),
+(35, 95462288, 5, 'empresa', '2026-09-14 22:10:54'),
+(36, 95957217, 5, 'empresa', '2026-09-14 22:10:54'),
+(37, 99001122, 5, 'empresa', '2026-09-14 22:10:54'),
+(38, 99887766, 5, 'empresa', '2026-09-14 22:10:54'),
+(39, 99900011, 5, 'empresa', '2026-09-14 22:10:54'),
+(40, 123456123, 5, 'empresa', '2026-09-14 22:10:54'),
+(41, 1090807123, 5, 'empresa', '2026-09-14 22:10:54'),
+(42, 1101101101, 5, 'empresa', '2026-09-14 22:10:54'),
+(43, 1101246975, 5, 'empresa', '2026-09-14 22:10:54'),
+(44, 1102102101, 5, 'empresa', '2026-09-14 22:10:54'),
+(45, 1103103101, 5, 'empresa', '2026-09-14 22:10:54'),
+(46, 1104104101, 5, 'empresa', '2026-09-14 22:10:54'),
+(47, 1104774847, 5, 'empresa', '2026-09-14 22:10:54'),
+(48, 1105105104, 5, 'empresa', '2026-09-14 22:10:54'),
+(49, 1107107107, 5, 'empresa', '2026-09-14 22:10:54'),
+(50, 1108108104, 5, 'empresa', '2026-09-14 22:10:54'),
+(51, 1109109101, 5, 'empresa', '2026-09-14 22:10:54'),
+(52, 1110101110, 5, 'empresa', '2026-09-14 22:10:54'),
+(53, 1110110111, 5, 'empresa', '2026-09-14 22:10:54'),
+(54, 1110110112, 5, 'empresa', '2026-09-14 22:10:54'),
+(55, 1110110113, 5, 'empresa', '2026-09-14 22:10:54'),
+(56, 1110110114, 5, 'empresa', '2026-09-14 22:10:54'),
+(57, 1110110115, 5, 'empresa', '2026-09-14 22:10:54'),
+(58, 1110110116, 5, 'empresa', '2026-09-14 22:10:54'),
+(59, 1110110117, 5, 'empresa', '2026-09-14 22:10:54'),
+(60, 1110110118, 5, 'empresa', '2026-09-14 22:10:54'),
+(61, 1110110142, 5, 'empresa', '2026-09-14 22:10:54'),
+(62, 1434389742, 5, 'empresa', '2026-09-14 22:10:54'),
+(63, 6546341122, 5, 'empresa', '2026-09-14 22:10:54'),
+(64, 9686711199, 5, 'empresa', '2026-09-14 22:10:54'),
+(65, 123123456321, 5, 'empresa', '2026-09-14 22:10:54'),
+(128, 80101476, 1, 'global', '2026-09-15 00:23:54'),
+(129, 1104774847, 1, 'global', '2026-09-15 00:23:54'),
+(130, 11122, 2, 'global', '2026-09-15 04:15:03'),
+(131, 10203040, 2, 'global', '2026-09-15 04:15:03'),
+(132, 10293847, 2, 'global', '2026-09-15 04:15:03'),
+(133, 10439581, 2, 'global', '2026-09-15 04:15:03'),
+(134, 12233445, 2, 'global', '2026-09-15 04:15:03'),
+(135, 13579246, 2, 'global', '2026-09-15 04:15:03'),
+(136, 14142135, 2, 'global', '2026-09-15 04:15:03'),
+(137, 16180339, 2, 'global', '2026-09-15 04:15:03'),
+(138, 20304050, 4, 'global', '2026-09-15 04:15:03'),
+(139, 24681357, 4, 'global', '2026-09-15 04:15:03'),
+(140, 27182818, 4, 'global', '2026-09-15 04:15:03'),
+(141, 29979245, 4, 'global', '2026-09-15 04:15:03'),
+(142, 30405060, 4, 'global', '2026-09-15 04:15:03'),
+(143, 31415926, 4, 'global', '2026-09-15 04:15:03'),
+(144, 40506070, 4, 'global', '2026-09-15 04:15:03'),
+(145, 44455566, 4, 'global', '2026-09-15 04:15:03'),
+(146, 48273377, 3, 'global', '2026-09-15 04:15:03'),
+(147, 50288419, 3, 'global', '2026-09-15 04:15:03'),
+(148, 55667788, 3, 'global', '2026-09-15 04:15:03'),
+(149, 56473829, 3, 'global', '2026-09-15 04:15:03'),
+(150, 57721566, 3, 'global', '2026-09-15 04:15:03'),
+(151, 60708090, 3, 'global', '2026-09-15 04:15:03'),
+(152, 66677788, 3, 'global', '2026-09-15 04:15:03'),
+(153, 66778899, 3, 'global', '2026-09-15 04:15:03'),
+(154, 69314718, 5, 'global', '2026-09-15 04:15:03'),
+(155, 70809010, 5, 'global', '2026-09-15 04:15:03'),
+(156, 71828182, 5, 'global', '2026-09-15 04:15:03'),
+(157, 73205080, 5, 'global', '2026-09-15 04:15:03'),
+(158, 77788899, 5, 'global', '2026-09-15 04:15:03'),
+(159, 80901020, 5, 'global', '2026-09-15 04:15:03'),
+(160, 82012513, 5, 'global', '2026-09-15 04:15:03'),
+(161, 83147098, 5, 'global', '2026-09-15 04:15:03'),
+(162, 87654321, 5, 'global', '2026-09-15 04:15:03'),
+(163, 95462288, 5, 'global', '2026-09-15 04:15:03'),
+(164, 95957217, 5, 'global', '2026-09-15 04:15:03'),
+(165, 99001122, 5, 'global', '2026-09-15 04:15:03'),
+(166, 99887766, 5, 'global', '2026-09-15 04:15:03'),
+(167, 99900011, 5, 'global', '2026-09-15 04:15:03'),
+(168, 123456123, 5, 'global', '2026-09-15 04:15:03'),
+(169, 1090807123, 5, 'global', '2026-09-15 04:15:03'),
+(170, 1101101101, 5, 'global', '2026-09-15 04:15:03'),
+(171, 1101246975, 5, 'global', '2026-09-15 04:15:03'),
+(172, 1102102101, 5, 'global', '2026-09-15 04:15:03'),
+(173, 1103103101, 5, 'global', '2026-09-15 04:15:03'),
+(174, 1104104101, 5, 'global', '2026-09-15 04:15:03'),
+(175, 1105105104, 5, 'global', '2026-09-15 04:15:03'),
+(176, 1107107107, 5, 'global', '2026-09-15 04:15:03'),
+(177, 1108108104, 5, 'global', '2026-09-15 04:15:03'),
+(178, 1109109101, 5, 'global', '2026-09-15 04:15:03'),
+(179, 1110101110, 5, 'global', '2026-09-15 04:15:03'),
+(180, 1110110111, 5, 'global', '2026-09-15 04:15:03'),
+(181, 1110110112, 5, 'global', '2026-09-15 04:15:03'),
+(182, 1110110113, 5, 'global', '2026-09-15 04:15:03'),
+(183, 1110110114, 5, 'global', '2026-09-15 04:15:03'),
+(184, 1110110115, 5, 'global', '2026-09-15 04:15:03'),
+(185, 1110110116, 5, 'global', '2026-09-15 04:15:03'),
+(186, 1110110117, 5, 'global', '2026-09-15 04:15:03'),
+(187, 1110110118, 5, 'global', '2026-09-15 04:15:03'),
+(188, 1110110142, 5, 'global', '2026-09-15 04:15:03'),
+(189, 1434389742, 5, 'global', '2026-09-15 04:15:03'),
+(190, 6546341122, 5, 'global', '2026-09-15 04:15:03'),
+(191, 9686711199, 5, 'global', '2026-09-15 04:15:03'),
+(192, 123123456321, 5, 'global', '2026-09-15 04:15:03');
+
+--
+-- Índices para tablas volcadas
+--
+
+--
+-- Indices de la tabla `aprobaciones`
+--
+ALTER TABLE `aprobaciones`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_aprobaciones_solicitud` (`solicitud_id`),
+  ADD KEY `idx_aprobaciones_aprobador` (`aprobador_id`);
+
+--
+-- Indices de la tabla `asignaciones_turno`
+--
+ALTER TABLE `asignaciones_turno`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_asignacion_instancia_empleado` (`instancia_turno_id`,`empleado_id`),
+  ADD KEY `idx_asignaciones_instancia` (`instancia_turno_id`),
+  ADD KEY `idx_asignaciones_empleado` (`empleado_id`),
+  ADD KEY `fk_asignaciones_asignado_por` (`asignado_por`);
+
+--
+-- Indices de la tabla `disponibilidad`
+--
+ALTER TABLE `disponibilidad`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_disponibilidad_empleado` (`empleado_id`);
+
+--
+-- Indices de la tabla `documentos_solicitud`
+--
+ALTER TABLE `documentos_solicitud`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_documentos_solicitud` (`solicitud_id`),
+  ADD KEY `idx_documentos_empresa` (`empresa_id`);
+
+--
+-- Indices de la tabla `empleados`
+--
+ALTER TABLE `empleados`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_empleados_empresa_codigo` (`empresa_id`,`codigo_empleado`),
+  ADD KEY `idx_empleados_usuario` (`usuario_id`),
+  ADD KEY `idx_empleados_empresa` (`empresa_id`),
+  ADD KEY `idx_empleados_especialidad` (`especialidad_id`);
+
+--
+-- Indices de la tabla `empresas`
+--
+ALTER TABLE `empresas`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_empresas_plan` (`plan_id`);
+
+--
+-- Indices de la tabla `especialidades`
+--
+ALTER TABLE `especialidades`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_especialidades_empresa_codigo` (`empresa_id`,`codigo`),
+  ADD KEY `idx_especialidades_empresa` (`empresa_id`);
+
+--
+-- Indices de la tabla `instancias_turno`
+--
+ALTER TABLE `instancias_turno`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_instancias_plantilla` (`plantilla_id`),
+  ADD KEY `idx_instancias_fecha` (`fecha`),
+  ADD KEY `idx_instancias_sede` (`sede_id`),
+  ADD KEY `fk_instancias_creado_por` (`creado_por`);
+
+--
+-- Indices de la tabla `notificaciones`
+--
+ALTER TABLE `notificaciones`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_notif_empresa` (`empresa_id`),
+  ADD KEY `idx_notif_usuario` (`usuario_id`);
+
+--
+-- Indices de la tabla `planes`
+--
+ALTER TABLE `planes`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_planes_nombre` (`nombre`);
+
+--
+-- Indices de la tabla `plantillas_turno`
+--
+ALTER TABLE `plantillas_turno`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_plantillas_empresa` (`empresa_id`);
+
+--
+-- Indices de la tabla `registros_auditoria`
+--
+ALTER TABLE `registros_auditoria`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_auditoria_empresa` (`empresa_id`),
+  ADD KEY `idx_auditoria_usuario` (`usuario_id`);
+
+--
+-- Indices de la tabla `roles`
+--
+ALTER TABLE `roles`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_roles_nombre` (`nombre`),
+  ADD UNIQUE KEY `uq_roles_codigo` (`codigo`);
+
+--
+-- Indices de la tabla `sedes`
+--
+ALTER TABLE `sedes`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_sedes_empresa` (`empresa_id`);
+
+--
+-- Indices de la tabla `solicitudes_novedad`
+--
+ALTER TABLE `solicitudes_novedad`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_solicitudes_empleado` (`empleado_id`),
+  ADD KEY `idx_solicitudes_empresa` (`empresa_id`);
+
+--
+-- Indices de la tabla `usuarios`
+--
+ALTER TABLE `usuarios`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_usuarios_empresa_correo` (`empresa_id`,`correo`),
+  ADD KEY `idx_usuarios_empresa` (`empresa_id`),
+  ADD KEY `idx_usuarios_correo` (`correo`);
+
+--
+-- Indices de la tabla `usuario_roles`
+--
+ALTER TABLE `usuario_roles`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_usuario_rol_alcance` (`usuario_id`,`rol_id`,`alcance`),
+  ADD KEY `idx_usuario_roles_usuario` (`usuario_id`),
+  ADD KEY `idx_usuario_roles_rol` (`rol_id`);
+
+--
+-- AUTO_INCREMENT de las tablas volcadas
+--
+
+--
+-- AUTO_INCREMENT de la tabla `aprobaciones`
+--
+ALTER TABLE `aprobaciones`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `asignaciones_turno`
+--
+ALTER TABLE `asignaciones_turno`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `disponibilidad`
+--
+ALTER TABLE `disponibilidad`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `documentos_solicitud`
+--
+ALTER TABLE `documentos_solicitud`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `empleados`
+--
+ALTER TABLE `empleados`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=42;
+
+--
+-- AUTO_INCREMENT de la tabla `empresas`
+--
+ALTER TABLE `empresas`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT de la tabla `especialidades`
+--
+ALTER TABLE `especialidades`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=83;
+
+--
+-- AUTO_INCREMENT de la tabla `instancias_turno`
+--
+ALTER TABLE `instancias_turno`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `notificaciones`
+--
+ALTER TABLE `notificaciones`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `planes`
+--
+ALTER TABLE `planes`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT de la tabla `plantillas_turno`
+--
+ALTER TABLE `plantillas_turno`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `registros_auditoria`
+--
+ALTER TABLE `registros_auditoria`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `roles`
+--
+ALTER TABLE `roles`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- AUTO_INCREMENT de la tabla `sedes`
+--
+ALTER TABLE `sedes`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT de la tabla `solicitudes_novedad`
+--
+ALTER TABLE `solicitudes_novedad`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `usuarios`
+--
+ALTER TABLE `usuarios`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=123123456322;
+
+--
+-- AUTO_INCREMENT de la tabla `usuario_roles`
+--
+ALTER TABLE `usuario_roles`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=193;
+
+--
+-- Restricciones para tablas volcadas
+--
+
+--
+-- Filtros para la tabla `aprobaciones`
+--
+ALTER TABLE `aprobaciones`
+  ADD CONSTRAINT `fk_aprobaciones_aprobador` FOREIGN KEY (`aprobador_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_aprobaciones_solicitud` FOREIGN KEY (`solicitud_id`) REFERENCES `solicitudes_novedad` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `asignaciones_turno`
+--
+ALTER TABLE `asignaciones_turno`
+  ADD CONSTRAINT `fk_asignaciones_asignado_por` FOREIGN KEY (`asignado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_asignaciones_empleado` FOREIGN KEY (`empleado_id`) REFERENCES `empleados` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_asignaciones_instancia` FOREIGN KEY (`instancia_turno_id`) REFERENCES `instancias_turno` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `disponibilidad`
+--
+ALTER TABLE `disponibilidad`
+  ADD CONSTRAINT `fk_disponibilidad_empleado` FOREIGN KEY (`empleado_id`) REFERENCES `empleados` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `documentos_solicitud`
+--
+ALTER TABLE `documentos_solicitud`
+  ADD CONSTRAINT `fk_documentos_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_documentos_solicitud` FOREIGN KEY (`solicitud_id`) REFERENCES `solicitudes_novedad` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `empleados`
+--
+ALTER TABLE `empleados`
+  ADD CONSTRAINT `fk_empleados_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_empleados_especialidad` FOREIGN KEY (`especialidad_id`) REFERENCES `especialidades` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_empleados_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `empresas`
+--
+ALTER TABLE `empresas`
+  ADD CONSTRAINT `fk_empresas_plan` FOREIGN KEY (`plan_id`) REFERENCES `planes` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `especialidades`
+--
+ALTER TABLE `especialidades`
+  ADD CONSTRAINT `fk_especialidades_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `instancias_turno`
+--
+ALTER TABLE `instancias_turno`
+  ADD CONSTRAINT `fk_instancias_creado_por` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_instancias_plantilla` FOREIGN KEY (`plantilla_id`) REFERENCES `plantillas_turno` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_instancias_sede` FOREIGN KEY (`sede_id`) REFERENCES `sedes` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `notificaciones`
+--
+ALTER TABLE `notificaciones`
+  ADD CONSTRAINT `fk_notificaciones_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_notificaciones_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `plantillas_turno`
+--
+ALTER TABLE `plantillas_turno`
+  ADD CONSTRAINT `fk_plantillas_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `registros_auditoria`
+--
+ALTER TABLE `registros_auditoria`
+  ADD CONSTRAINT `fk_auditoria_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_auditoria_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `sedes`
+--
+ALTER TABLE `sedes`
+  ADD CONSTRAINT `fk_sedes_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `solicitudes_novedad`
+--
+ALTER TABLE `solicitudes_novedad`
+  ADD CONSTRAINT `fk_solicitudes_empleado` FOREIGN KEY (`empleado_id`) REFERENCES `empleados` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_solicitudes_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `usuarios`
+--
+ALTER TABLE `usuarios`
+  ADD CONSTRAINT `fk_usuarios_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `usuario_roles`
+--
+ALTER TABLE `usuario_roles`
+  ADD CONSTRAINT `fk_usuario_roles_rol` FOREIGN KEY (`rol_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_usuario_roles_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
