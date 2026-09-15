@@ -231,8 +231,135 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/me', authenticateToken, (req, res) => {
-  res.json({ authenticated: true, auth: req.auth });
+async function getUserById(id) {
+  if (!pool) return null;
+  try {
+    const [urows] = await pool.query(
+      `SELECT id AS Id_usuario, full_name AS nombre, email AS correo,
+        password_hash AS contrasena, NULL AS Id_rol, 'users' AS source
+       FROM users WHERE id = ? LIMIT 1`,
+      [id],
+    );
+    if (urows[0]) return urows[0];
+  } catch (err) {
+    if (!['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(err.code)) throw err;
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT id AS Id_usuario,
+              CONCAT_WS(' ', primer_nombre, segundo_nombre, primer_apellido, segundo_apellido) AS nombre,
+              correo, contrasena, id_rol AS Id_rol, empresa_id, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, activo
+       FROM usuarios WHERE id = ? LIMIT 1`,
+      [id],
+    );
+    if (rows[0]) {
+      rows[0].source = 'usuarios';
+      return rows[0];
+    }
+    return null;
+  } catch (err) {
+    if (['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(err.code)) return null;
+    throw err;
+  }
+}
+
+async function getCompanyById(empresaId) {
+  if (!pool || !empresaId) return null;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, nombre, COALESCE(logo_url, logo) AS logo_url FROM empresas WHERE id = ? LIMIT 1`,
+      [empresaId],
+    );
+    return rows[0] || null;
+  } catch (err) {
+    if (['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(err.code)) return null;
+    throw err;
+  }
+}
+
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const id = req.auth?.id;
+    if (!id) return res.status(401).json({ error: 'invalid token' });
+    const user = await getUserById(id);
+    if (!user) return res.status(404).json({ error: 'user not found' });
+    const company = user.empresa_id ? await getCompanyById(user.empresa_id) : null;
+    return res.json({ user: {
+      Id_usuario: user.Id_usuario,
+      nombre: user.nombre,
+      correo: user.correo,
+      Id_rol: user.Id_rol,
+      primer_nombre: user.primer_nombre,
+      segundo_nombre: user.segundo_nombre,
+      primer_apellido: user.primer_apellido,
+      segundo_apellido: user.segundo_apellido,
+      telefono: user.telefono,
+      activo: user.activo,
+      source: user.source || 'usuarios',
+    }, company });
+  } catch (err) {
+    console.error('GET /me error', err);
+    res.status(503).json({ error: 'could not fetch profile' });
+  }
+});
+
+router.put('/me', authenticateToken, async (req, res) => {
+  const id = req.auth?.id;
+  if (!id) return res.status(401).json({ error: 'invalid token' });
+  const { primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono } = req.body || {};
+  if (!pool) return res.status(503).json({ error: 'database unavailable' });
+
+  try {
+    const user = await getUserById(id);
+    if (!user) return res.status(404).json({ error: 'user not found' });
+
+    if (user.source === 'users') {
+      // For normalized users we only allow changing full name and phone via full_name
+      const fullName = [primer_nombre, segundo_nombre, primer_apellido, segundo_apellido].filter(Boolean).join(' ').trim();
+      if (!fullName) return res.status(400).json({ error: 'at least one name field required' });
+      await pool.query('UPDATE users SET full_name = ?, phone = ? WHERE id = ?', [fullName, telefono || null, id]);
+      return res.json({ message: 'profile updated' });
+    }
+
+    await pool.query(
+      'UPDATE usuarios SET primer_nombre = ?, segundo_nombre = ?, primer_apellido = ?, segundo_apellido = ?, telefono = ? WHERE id = ?',
+      [primer_nombre || null, segundo_nombre || null, primer_apellido || null, segundo_apellido || null, telefono || null, id],
+    );
+    return res.json({ message: 'profile updated' });
+  } catch (err) {
+    console.error('PUT /me error', err);
+    res.status(503).json({ error: 'could not update profile' });
+  }
+});
+
+router.post('/me/change-password', authenticateToken, async (req, res) => {
+  const id = req.auth?.id;
+  if (!id) return res.status(401).json({ error: 'invalid token' });
+  const { oldPassword, newPassword, confirmPassword } = req.body || {};
+  if (!oldPassword || !newPassword) return res.status(400).json({ error: 'oldPassword and newPassword required' });
+  if (newPassword.length < 8) return res.status(400).json({ error: 'newPassword must be at least 8 characters' });
+  if (newPassword !== confirmPassword) return res.status(400).json({ error: 'passwords do not match' });
+  if (!pool) return res.status(503).json({ error: 'database unavailable' });
+
+  try {
+    const user = await getUserById(id);
+    if (!user) return res.status(404).json({ error: 'user not found' });
+
+    const match = await bcrypt.compare(oldPassword, user.contrasena);
+    if (!match) return res.status(401).json({ error: 'invalid current password' });
+
+    const newHash = await bcrypt.hash(newPassword, 12);
+    if (user.source === 'users') {
+      await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, id]);
+    } else {
+      await pool.query('UPDATE usuarios SET contrasena = ? WHERE id = ?', [newHash, id]);
+    }
+    return res.json({ message: 'password changed' });
+  } catch (err) {
+    console.error('POST /me/change-password error', err);
+    res.status(503).json({ error: 'could not change password' });
+  }
 });
 
 module.exports = router;
