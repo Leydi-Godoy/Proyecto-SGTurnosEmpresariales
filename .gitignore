@@ -11,3 +11,5 @@ dist/
 .envnode_modules/
 dist/
 .env
+backend/scripts/backup_passwords_*.csv
+backend/scripts/*.csv
