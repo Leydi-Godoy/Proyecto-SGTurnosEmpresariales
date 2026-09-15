@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 15-09-2026 a las 03:02:06
+-- Tiempo de generación: 15-09-2026 a las 03:18:26
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -56,8 +56,86 @@ CREATE TABLE `asignaciones_turno` (
 --
 -- Estructura de tabla para la tabla `disponibilidad`
 --
--- Respaldo de especialidades eliminado del dump para evitar recrear la tabla `respaldo_especialidades`.
--- Si necesita restaurar los datos de respaldo, consulte la copia de seguridad externa.
+
+CREATE TABLE `disponibilidad` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `empleado_id` bigint(20) UNSIGNED NOT NULL,
+  `dia_semana` tinyint(3) UNSIGNED NOT NULL,
+  `desde_hora` time NOT NULL,
+  `hasta_hora` time NOT NULL,
+  `nota` text DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `documentos_solicitud`
+--
+
+CREATE TABLE `documentos_solicitud` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `solicitud_id` bigint(20) UNSIGNED NOT NULL,
+  `empresa_id` bigint(20) UNSIGNED NOT NULL,
+  `nombre_archivo` varchar(512) NOT NULL,
+  `url_almacenamiento` varchar(2048) NOT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `empleados`
+--
+
+CREATE TABLE `empleados` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `usuario_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `empresa_id` bigint(20) UNSIGNED NOT NULL,
+  `codigo_empleado` varchar(64) DEFAULT NULL,
+  `especialidad_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `equipo_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `fecha_ingreso` date DEFAULT NULL,
+  `estado` varchar(32) NOT NULL DEFAULT 'activo',
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `empleados`
+--
+
+INSERT INTO `empleados` (`id`, `usuario_id`, `empresa_id`, `codigo_empleado`, `especialidad_id`, `equipo_id`, `fecha_ingreso`, `estado`, `creado_en`) VALUES
+(1, 69314718, 1, 'EMP1_69314718', 2, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(2, 70809010, 2, 'EMP2_70809010', 44, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(3, 71828182, 3, 'EMP3_71828182', 53, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(4, 73205080, 4, 'EMP4_73205080', 38, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(5, 77788899, 5, 'EMP5_77788899', 63, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(6, 80101476, 6, 'EMP6_80101476', 72, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(7, 80901020, 7, 'EMP7_80901020', 33, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(8, 82012513, 8, 'EMP8_82012513', 82, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(9, 83147098, 1, 'EMP1_83147098', 2, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(10, 87654321, 2, 'EMP2_87654321', 44, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(11, 95462288, 3, 'EMP3_95462288', 53, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(12, 95957217, 4, 'EMP4_95957217', 38, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(13, 99001122, 5, 'EMP5_99001122', 63, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(14, 99887766, 6, 'EMP6_99887766', 72, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(15, 99900011, 7, 'EMP7_99900011', 33, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(16, 123456123, 8, 'EMP8_123456123', 82, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(17, 1090807123, 1, 'EMP1_1090807123', 2, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(18, 1101101101, 2, 'EMP2_1101101101', 44, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(19, 1101246975, 3, 'EMP3_1101246975', 53, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(20, 1102102101, 4, 'EMP4_1102102101', 38, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(21, 1103103101, 5, 'EMP5_1103103101', 63, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(22, 1104104101, 6, 'EMP6_1104104101', 72, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(23, 1104774847, 7, 'EMP7_1104774847', 33, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(24, 1105105104, 8, 'EMP8_1105105104', 82, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(25, 1107107107, 1, 'EMP1_1107107107', 2, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(26, 1108108104, 2, 'EMP2_1108108104', 44, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(27, 1109109101, 3, 'EMP3_1109109101', 53, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(28, 1110101110, 4, 'EMP4_1110101110', 38, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(29, 1110110111, 5, 'EMP5_1110110111', 63, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(30, 1110110112, 6, 'EMP6_1110110112', 72, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
+(31, 1110110113, 7, 'EMP7_1110110113', 33, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
 (32, 1110110114, 8, 'EMP8_1110110114', 82, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
 (33, 1110110115, 1, 'EMP1_1110110115', 2, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
 (34, 1110110116, 2, 'EMP2_1110110116', 44, NULL, '2026-09-14', 'activo', '2026-09-15 00:40:51'),
@@ -219,91 +297,6 @@ CREATE TABLE `registros_auditoria` (
   `detalles` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`detalles`)),
   `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `respaldo_especialidades`
---
-
-CREATE TABLE `respaldo_especialidades` (
-  `id` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
-  `empresa_id` bigint(20) UNSIGNED NOT NULL,
-  `codigo` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `nombre` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `descripcion` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Volcado de datos para la tabla `respaldo_especialidades`
---
-
-INSERT INTO `respaldo_especialidades` (`id`, `empresa_id`, `codigo`, `nombre`, `descripcion`, `creado_en`) VALUES
-(3, 2, 'medicina_general', 'Medicina General', 'Atención primaria y consulta general', '2026-09-14 23:35:10'),
-(4, 3, 'medicina_general', 'Medicina General', 'Atención primaria y consulta general', '2026-09-14 23:35:10'),
-(5, 4, 'medicina_general', 'Medicina General', 'Atención primaria y consulta general', '2026-09-14 23:35:10'),
-(6, 5, 'medicina_general', 'Medicina General', 'Atención primaria y consulta general', '2026-09-14 23:35:10'),
-(7, 6, 'medicina_general', 'Medicina General', 'Atención primaria y consulta general', '2026-09-14 23:35:10'),
-(8, 7, 'medicina_general', 'Medicina General', 'Atención primaria y consulta general', '2026-09-14 23:35:10'),
-(9, 8, 'medicina_general', 'Medicina General', 'Atención primaria y consulta general', '2026-09-14 23:35:10'),
-(19, 1, 'enfermería', 'Enfermería', 'Cuidados y seguimiento de pacientes', '2026-09-14 23:46:07'),
-(20, 2, 'enfermería', 'Enfermería', 'Cuidados y seguimiento de pacientes', '2026-09-14 23:46:07'),
-(21, 3, 'enfermería', 'Enfermería', 'Cuidados y seguimiento de pacientes', '2026-09-14 23:46:07'),
-(22, 4, 'enfermería', 'Enfermería', 'Cuidados y seguimiento de pacientes', '2026-09-14 23:46:07'),
-(23, 5, 'enfermería', 'Enfermería', 'Cuidados y seguimiento de pacientes', '2026-09-14 23:46:07'),
-(24, 6, 'enfermería', 'Enfermería', 'Cuidados y seguimiento de pacientes', '2026-09-14 23:46:07'),
-(25, 7, 'enfermería', 'Enfermería', 'Cuidados y seguimiento de pacientes', '2026-09-14 23:46:07'),
-(26, 8, 'enfermería', 'Enfermería', 'Cuidados y seguimiento de pacientes', '2026-09-14 23:46:07'),
-(27, 1, 'psicología', 'Psicología', 'Atención psicológica y terapias', '2026-09-14 23:46:07'),
-(28, 2, 'psicología', 'Psicología', 'Atención psicológica y terapias', '2026-09-14 23:46:07'),
-(29, 3, 'psicología', 'Psicología', 'Atención psicológica y terapias', '2026-09-14 23:46:07'),
-(30, 4, 'psicología', 'Psicología', 'Atención psicológica y terapias', '2026-09-14 23:46:07'),
-(31, 5, 'psicología', 'Psicología', 'Atención psicológica y terapias', '2026-09-14 23:46:07'),
-(32, 6, 'psicología', 'Psicología', 'Atención psicológica y terapias', '2026-09-14 23:46:07'),
-(34, 8, 'psicología', 'Psicología', 'Atención psicológica y terapias', '2026-09-14 23:46:07'),
-(35, 1, 'vigilancia', 'Vigilancia', 'Personal de vigilancia y seguridad por turnos', '2026-09-14 23:46:07'),
-(36, 2, 'vigilancia', 'Vigilancia', 'Personal de vigilancia y seguridad por turnos', '2026-09-14 23:46:07'),
-(37, 3, 'vigilancia', 'Vigilancia', 'Personal de vigilancia y seguridad por turnos', '2026-09-14 23:46:07'),
-(39, 5, 'vigilancia', 'Vigilancia', 'Personal de vigilancia y seguridad por turnos', '2026-09-14 23:46:07'),
-(40, 6, 'vigilancia', 'Vigilancia', 'Personal de vigilancia y seguridad por turnos', '2026-09-14 23:46:07'),
-(41, 7, 'vigilancia', 'Vigilancia', 'Personal de vigilancia y seguridad por turnos', '2026-09-14 23:46:07'),
-(42, 8, 'vigilancia', 'Vigilancia', 'Personal de vigilancia y seguridad por turnos', '2026-09-14 23:46:07'),
-(43, 1, 'call_center', 'Call Center', 'Atención telefónica 24/7, turnos rotativos', '2026-09-14 23:46:07'),
-(45, 3, 'call_center', 'Call Center', 'Atención telefónica 24/7, turnos rotativos', '2026-09-14 23:46:07'),
-(46, 4, 'call_center', 'Call Center', 'Atención telefónica 24/7, turnos rotativos', '2026-09-14 23:46:07'),
-(47, 5, 'call_center', 'Call Center', 'Atención telefónica 24/7, turnos rotativos', '2026-09-14 23:46:07'),
-(48, 6, 'call_center', 'Call Center', 'Atención telefónica 24/7, turnos rotativos', '2026-09-14 23:46:07'),
-(49, 7, 'call_center', 'Call Center', 'Atención telefónica 24/7, turnos rotativos', '2026-09-14 23:46:07'),
-(50, 8, 'call_center', 'Call Center', 'Atención telefónica 24/7, turnos rotativos', '2026-09-14 23:46:07'),
-(51, 1, 'recepción', 'Recepción', 'Atención en recepción y control de visitas (turnos)', '2026-09-14 23:46:07'),
-(52, 2, 'recepción', 'Recepción', 'Atención en recepción y control de visitas (turnos)', '2026-09-14 23:46:07'),
-(54, 4, 'recepción', 'Recepción', 'Atención en recepción y control de visitas (turnos)', '2026-09-14 23:46:07'),
-(55, 5, 'recepción', 'Recepción', 'Atención en recepción y control de visitas (turnos)', '2026-09-14 23:46:07'),
-(56, 6, 'recepción', 'Recepción', 'Atención en recepción y control de visitas (turnos)', '2026-09-14 23:46:07'),
-(57, 7, 'recepción', 'Recepción', 'Atención en recepción y control de visitas (turnos)', '2026-09-14 23:46:07'),
-(58, 8, 'recepción', 'Recepción', 'Atención en recepción y control de visitas (turnos)', '2026-09-14 23:46:07'),
-(59, 1, 'limpieza', 'Limpieza', 'Servicios de limpieza por turnos', '2026-09-14 23:46:07'),
-(60, 2, 'limpieza', 'Limpieza', 'Servicios de limpieza por turnos', '2026-09-14 23:46:07'),
-(61, 3, 'limpieza', 'Limpieza', 'Servicios de limpieza por turnos', '2026-09-14 23:46:07'),
-(62, 4, 'limpieza', 'Limpieza', 'Servicios de limpieza por turnos', '2026-09-14 23:46:07'),
-(64, 6, 'limpieza', 'Limpieza', 'Servicios de limpieza por turnos', '2026-09-14 23:46:07'),
-(65, 7, 'limpieza', 'Limpieza', 'Servicios de limpieza por turnos', '2026-09-14 23:46:07'),
-(66, 8, 'limpieza', 'Limpieza', 'Servicios de limpieza por turnos', '2026-09-14 23:46:07'),
-(67, 1, 'mantenimiento', 'Mantenimiento', 'Tareas de mantenimiento preventivo y correctivo', '2026-09-14 23:46:07'),
-(68, 2, 'mantenimiento', 'Mantenimiento', 'Tareas de mantenimiento preventivo y correctivo', '2026-09-14 23:46:07'),
-(69, 3, 'mantenimiento', 'Mantenimiento', 'Tareas de mantenimiento preventivo y correctivo', '2026-09-14 23:46:07'),
-(70, 4, 'mantenimiento', 'Mantenimiento', 'Tareas de mantenimiento preventivo y correctivo', '2026-09-14 23:46:07'),
-(71, 5, 'mantenimiento', 'Mantenimiento', 'Tareas de mantenimiento preventivo y correctivo', '2026-09-14 23:46:07'),
-(73, 7, 'mantenimiento', 'Mantenimiento', 'Tareas de mantenimiento preventivo y correctivo', '2026-09-14 23:46:07'),
-(74, 8, 'mantenimiento', 'Mantenimiento', 'Tareas de mantenimiento preventivo y correctivo', '2026-09-14 23:46:07'),
-(75, 1, 'monitoreo_cctv', 'Monitoreo CCTV', 'Vigilancia por cámaras y monitoreo remoto', '2026-09-14 23:46:07'),
-(76, 2, 'monitoreo_cctv', 'Monitoreo CCTV', 'Vigilancia por cámaras y monitoreo remoto', '2026-09-14 23:46:07'),
-(77, 3, 'monitoreo_cctv', 'Monitoreo CCTV', 'Vigilancia por cámaras y monitoreo remoto', '2026-09-14 23:46:07'),
-(78, 4, 'monitoreo_cctv', 'Monitoreo CCTV', 'Vigilancia por cámaras y monitoreo remoto', '2026-09-14 23:46:07'),
-(79, 5, 'monitoreo_cctv', 'Monitoreo CCTV', 'Vigilancia por cámaras y monitoreo remoto', '2026-09-14 23:46:07'),
-(80, 6, 'monitoreo_cctv', 'Monitoreo CCTV', 'Vigilancia por cámaras y monitoreo remoto', '2026-09-14 23:46:07'),
-(81, 7, 'monitoreo_cctv', 'Monitoreo CCTV', 'Vigilancia por cámaras y monitoreo remoto', '2026-09-14 23:46:07');
 
 -- --------------------------------------------------------
 
