@@ -2,11 +2,6 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import Login from './Login'
 import ResetPassword from './PasswordReset'
-import EmpleadoDashboard from './components/EmpleadoDashboard'
-import PlanificadorDashboard from './components/PlanificadorDashboard'
-import SupervisorDashboard from './components/SupervisorDashboard'
-import AdminEmpresaDashboard from './components/AdminEmpresaDashboard'
-import SuperAdminDashboard from './components/SuperAdminDashboard'
 
 function App() {
   const [health, setHealth] = useState(null)
@@ -65,37 +60,9 @@ function App() {
     setShowCreateUser(false)
   }
 
-  if (window.location.pathname === '/restablecer-contrasena') return <div className="auth-wrap"><h1 className="app-title">SGTurnos Empresariales</h1><p className="subtitle">Recuperación segura de acceso</p><ResetPassword /></div>
+  if (window.location.pathname === '/restablecer-contrasena') return <div className="auth-wrap"><div className="brand-mark">SG</div><h1 className="app-title">SGTurnos Empresariales</h1><p className="subtitle">Recuperación segura de acceso</p><ResetPassword /></div>
 
-  if (!user) return <div className="auth-wrap"><h1 className="app-title">SGTurnos Empresariales</h1><p className="subtitle">Gestión de turnos, personas y operaciones</p><Login onLogin={handleLogin} /></div>
-
-  // Detectar si es empleado por Id_rol (puede ser número o string)
-  const rolStr = String(user.Id_rol || '').toLowerCase().trim()
-  
-  // Detectar si es super admin (rol 1: super_admin)
-  const isSuperAdmin = ['super_admin', 'superadmin', 'developer', '1', 'admin'].includes(rolStr) || user.Id_rol === 1
-  
-  // Detectar si es empleado (rol 5: emple5, empleado)
-  const isEmpleado = ['emple5', 'empleado', 'employee', '5'].includes(rolStr) || user.Id_rol === 5
-  
-  // Detectar si es planificador (rol 3: plani3)
-  const isPlanificador = ['plani3', 'planificador', 'scheduler', '3'].includes(rolStr) || user.Id_rol === 3
-
-  // Detectar si es supervisor (rol 4: supvi4)
-  const isSupervisor = ['supvi4', 'supervisor', 'supervisor', '4'].includes(rolStr) || user.Id_rol === 4
-
-  // Detectar si es admin empresa (rol 2: ademp2)
-  const isAdminEmpresa = ['ademp2', 'admin', 'admin_empresa', '2'].includes(rolStr) || user.Id_rol === 2
-
-  if (isSuperAdmin) return <SuperAdminDashboard onLogout={logout} />
-
-  if (isEmpleado) return <EmpleadoDashboard onLogout={logout} />
-  
-  if (isPlanificador) return <PlanificadorDashboard onLogout={logout} />
-
-  if (isSupervisor) return <SupervisorDashboard onLogout={logout} />
-
-  if (isAdminEmpresa) return <AdminEmpresaDashboard onLogout={logout} />
+  if (!user) return <div className="auth-wrap"><div className="brand-mark">SG</div><h1 className="app-title">SGTurnos Empresariales</h1><p className="subtitle">Gestión de turnos, personas y operaciones</p><Login onLogin={handleLogin} /></div>
 
   return <main className="dashboard">
     <header className="dashboard-header"><div><span className="eyebrow">Panel de control</span><h1>Hola, {user.nombre || 'Administrador'}</h1></div><button className="button-secondary" type="button" onClick={logout}>Cerrar sesión</button></header>
