@@ -1,0 +1,8 @@
+PENDIENTES:
+-  En el modulo de creación de usuario  que por defecto genere la contraseña: "primer apellido"123
+
+en la tabla usuarios validar lo oportuno de el teléfono de usuario.
+
+
+
+
