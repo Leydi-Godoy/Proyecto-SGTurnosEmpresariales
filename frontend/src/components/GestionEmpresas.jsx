@@ -1,7 +1,64 @@
 import { useState, useEffect } from 'react'
+import colombiaTerritorial from 'colombia-territorial'
+
+const municipiosColombia = colombiaTerritorial.departamentos.flatMap(departamento =>
+  departamento.municipios.map(municipio => municipio.nombre)
+)
+const ciudadesColombia = ['Bogotá', ...municipiosColombia.filter(ciudad => ciudad !== 'Bogotá')]
+
+const ubicacionesPorRegion = [
+  {
+    region: 'América del Norte',
+    paises: [
+      { nombre: 'Canadá', ciudades: ['Toronto', 'Montreal', 'Vancouver', 'Calgary', 'Ottawa', 'Edmonton', 'Quebec City', 'Winnipeg', 'Halifax', 'Victoria'] },
+      { nombre: 'Estados Unidos', ciudades: ['Nueva York', 'Los Ángeles', 'Chicago', 'Houston', 'Phoenix', 'Filadelfia', 'San Antonio', 'San Diego', 'Dallas', 'Miami'] },
+      { nombre: 'México', ciudades: ['Ciudad de México', 'Guadalajara', 'Monterrey', 'Puebla', 'Tijuana', 'León', 'Ciudad Juárez', 'Mérida', 'Querétaro', 'Cancún'] }
+    ]
+  },
+  {
+    region: 'América Central',
+    paises: [
+      { nombre: 'Belice', ciudades: ['Belmopán', 'Ciudad de Belice', 'San Ignacio', 'Orange Walk', 'Dangriga', 'Corozal', 'Punta Gorda', 'San Pedro', 'Benque Viejo del Carmen', 'Ladyville'] },
+      { nombre: 'Costa Rica', ciudades: ['San José', 'Alajuela', 'Cartago', 'Heredia', 'Liberia', 'Puntarenas', 'Limón', 'San Isidro', 'Desamparados', 'San Carlos'] },
+      { nombre: 'El Salvador', ciudades: ['San Salvador', 'Santa Ana', 'San Miguel', 'Soyapango', 'Santa Tecla', 'Mejicanos', 'Sonsonate', 'Apopa', 'Delgado', 'Ilopango'] },
+      { nombre: 'Guatemala', ciudades: ['Ciudad de Guatemala', 'Mixco', 'Villa Nueva', 'Quetzaltenango', 'Escuintla', 'Antigua Guatemala', 'San Pedro Carchá', 'Cobán', 'Huehuetenango', 'Puerto Barrios'] },
+      { nombre: 'Honduras', ciudades: ['Tegucigalpa', 'San Pedro Sula', 'La Ceiba', 'Choloma', 'Comayagua', 'Puerto Cortés', 'El Progreso', 'Villanueva', 'Choluteca', 'Juticalpa'] },
+      { nombre: 'Nicaragua', ciudades: ['Managua', 'León', 'Masaya', 'Granada', 'Matagalpa', 'Chinandega', 'Estelí', 'Juigalpa', 'Jinotega', 'Rivas'] },
+      { nombre: 'Panamá', ciudades: ['Ciudad de Panamá', 'San Miguelito', 'Colón', 'David', 'La Chorrera', 'Santiago de Veraguas', 'Chitré', 'Penonomé', 'Aguadulce', 'Arraiján'] }
+    ]
+  },
+  {
+    region: 'América del Sur',
+    paises: [
+      { nombre: 'Argentina', ciudades: ['Buenos Aires', 'Córdoba', 'Rosario', 'Mendoza', 'La Plata', 'Mar del Plata', 'Salta', 'San Miguel de Tucumán', 'Santa Fe', 'Corrientes'] },
+      { nombre: 'Bolivia', ciudades: ['La Paz', 'Santa Cruz de la Sierra', 'Cochabamba', 'Sucre', 'Oruro', 'Tarija', 'Potosí', 'Sacaba', 'Montero', 'Trinidad'] },
+      { nombre: 'Brasil', ciudades: ['São Paulo', 'Río de Janeiro', 'Brasilia', 'Salvador', 'Fortaleza', 'Belo Horizonte', 'Manaos', 'Curitiba', 'Recife', 'Porto Alegre'] },
+      { nombre: 'Chile', ciudades: ['Santiago', 'Valparaíso', 'Concepción', 'La Serena', 'Antofagasta', 'Temuco', 'Iquique', 'Rancagua', 'Talca', 'Arica'] },
+      { nombre: 'Colombia', ciudades: ciudadesColombia },
+      { nombre: 'Ecuador', ciudades: ['Quito', 'Guayaquil', 'Cuenca', 'Santo Domingo', 'Machala', 'Manta', 'Loja', 'Portoviejo', 'Ambato', 'Riobamba'] },
+      { nombre: 'Guyana', ciudades: ['Georgetown', 'Linden', 'New Amsterdam', 'Anna Regina', 'Bartica', 'Corriverton', 'Rose Hall', 'Mahaica', 'Lethem', 'Mabaruma'] },
+      { nombre: 'Paraguay', ciudades: ['Asunción', 'Ciudad del Este', 'San Lorenzo', 'Luque', 'Capiatá', 'Encarnación', 'Lambaré', 'Fernando de la Mora', 'Mariano Roque Alonso', 'Pedro Juan Caballero'] },
+      { nombre: 'Perú', ciudades: ['Lima', 'Arequipa', 'Trujillo', 'Chiclayo', 'Cusco', 'Piura', 'Iquitos', 'Huancayo', 'Chimbote', 'Tacna'] },
+      { nombre: 'Surinam', ciudades: ['Paramaribo', 'Lelydorp', 'Brokopondo', 'Nieuw Nickerie', 'Moengo', 'Albina', 'Groningen', 'Wageningen', 'Onverwacht', 'Totness'] },
+      { nombre: 'Uruguay', ciudades: ['Montevideo', 'Salto', 'Ciudad de la Costa', 'Paysandú', 'Las Piedras', 'Rivera', 'Maldonado', 'Tacuarembó', 'Melo', 'Mercedes'] },
+      { nombre: 'Venezuela', ciudades: ['Caracas', 'Maracaibo', 'Valencia', 'Barquisimeto', 'Maracay', 'Ciudad Guayana', 'Maturín', 'Barcelona', 'Puerto La Cruz', 'Cabimas'] }
+    ]
+  },
+  {
+    region: 'Europa',
+    paises: [
+      { nombre: 'España', ciudades: ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Zaragoza', 'Málaga', 'Bilbao', 'Alicante', 'Murcia', 'Palma'] },
+      { nombre: 'Portugal', ciudades: ['Lisboa', 'Oporto', 'Braga', 'Coímbra', 'Funchal', 'Aveiro', 'Setúbal', 'Amadora', 'Almada', 'Viseu'] },
+      { nombre: 'Italia', ciudades: ['Roma', 'Milán', 'Nápoles', 'Turín', 'Palermo', 'Génova', 'Bolonia', 'Florencia', 'Venecia', 'Bari'] }
+    ]
+  }
+]
+
+const paises = ubicacionesPorRegion.flatMap(region => region.paises)
 
 export default function GestionEmpresas() {
   const [empresas, setEmpresas] = useState([])
+  const [planes, setPlanes] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [editando, setEditando] = useState(null)
   const [mensaje, setMensaje] = useState('')
@@ -10,6 +67,8 @@ export default function GestionEmpresas() {
     nit: '',
     pais: '',
     ciudad: '',
+    zona_horaria: 'America/Bogota',
+    plan_id: '1',
     contacto: '',
     email: '',
     telefono: '',
@@ -17,52 +76,34 @@ export default function GestionEmpresas() {
   })
 
   useEffect(() => {
-    // Mock data
-    setEmpresas([
-      {
-        id: 1,
-        nombre: 'TechCorp Solutions',
-        nit: '900123456-1',
-        pais: 'Colombia',
-        ciudad: 'Bogotá',
-        contacto: 'Carlos Mendoza',
-        email: 'admin@techcorp.com',
-        telefono: '+57 1 234 5678',
-        activo: true,
-        usuarios: 45,
-        fecha_creacion: '2025-01-15'
-      },
-      {
-        id: 2,
-        nombre: 'Global Services Inc',
-        nit: '800987654-2',
-        pais: 'Colombia',
-        ciudad: 'Medellín',
-        contacto: 'Ana García',
-        email: 'contact@globalservices.com',
-        telefono: '+57 4 567 8901',
-        activo: true,
-        usuarios: 32,
-        fecha_creacion: '2025-02-20'
-      },
-      {
-        id: 3,
-        nombre: 'Empresa Antigua S.A.',
-        nit: '700654321-3',
-        pais: 'Colombia',
-        ciudad: 'Cali',
-        contacto: 'Juan Pérez',
-        email: 'info@empresaantigua.com',
-        telefono: '+57 2 345 6789',
-        activo: false,
-        usuarios: 0,
-        fecha_creacion: '2024-06-10'
-      }
-    ])
+    fetch('/api/empresas', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      .then(async response => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'No se pudieron cargar las empresas')
+        setEmpresas(data.map(empresa => ({
+          ...empresa,
+          email: empresa.correo || empresa.email || '',
+          activo: Boolean(Number(empresa.activo ?? 1)),
+          usuarios: 0
+        })))
+      })
+      .catch(error => setMensaje(`⚠️ ${error.message}`))
+
+    fetch('/api/planes', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      .then(async response => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los planes')
+        setPlanes(data)
+      })
+      .catch(error => setMensaje(prev => prev ? `${prev} ⚠️ ${error.message}` : `⚠️ ${error.message}`))
   }, [])
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
+    if (name === 'pais') {
+      setFormData(prev => ({ ...prev, pais: value, ciudad: '' }))
+      return
+    }
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -74,6 +115,8 @@ export default function GestionEmpresas() {
     if (!formData.nit) return 'NIT es requerido'
     if (!formData.pais) return 'País es requerido'
     if (!formData.ciudad) return 'Ciudad es requerido'
+    if (!formData.zona_horaria) return 'La zona horaria es requerida'
+    if (!formData.plan_id || !['1', '2', '3'].includes(String(formData.plan_id))) return 'El plan es requerido y debe ser 1, 2 o 3'
     if (!formData.contacto) return 'Contacto es requerido'
     if (!formData.email) return 'Email es requerido'
 
@@ -88,26 +131,56 @@ export default function GestionEmpresas() {
     return null
   }
 
-  const handleGuardar = () => {
+  const planSeleccionado = planes.find(plan => String(plan.id) === String(formData.plan_id)) || null
+
+  const handleGuardar = async () => {
     const error = validarForm()
     if (error) return alert(error)
 
+    const payload = {
+      nombre: formData.nombre,
+      nit: formData.nit,
+      pais: formData.pais,
+      ciudad: formData.ciudad,
+      contacto: formData.contacto,
+      correo: formData.email,
+      telefono: formData.telefono,
+      activo: formData.activo,
+      zona_horaria: formData.zona_horaria,
+      plan_id: Number(formData.plan_id)
+    }
+
     if (editando) {
+      const response = await fetch(`/api/empresas/${editando}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(payload)
+      })
+      const data = await response.json()
+      if (!response.ok) return setMensaje(`⚠️ ${data.error || 'No se pudo actualizar la empresa'}`)
+
       setEmpresas(prev => prev.map(e =>
         e.id === editando
-          ? { ...e, ...formData }
+          ? { ...e, ...data, email: data.correo || formData.email, activo: Boolean(Number(data.activo ?? 1)), usuarios: e.usuarios || 0 }
           : e
       ))
       setMensaje('✅ Empresa actualizada correctamente')
       setEditando(null)
     } else {
-      const nuevaEmpresa = {
-        id: Math.max(...empresas.map(e => e.id), 0) + 1,
-        ...formData,
-        usuarios: 0,
-        fecha_creacion: new Date().toISOString().split('T')[0]
-      }
-      setEmpresas([...empresas, nuevaEmpresa])
+      const response = await fetch('/api/empresas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(payload)
+      })
+      const data = await response.json()
+      if (!response.ok) return setMensaje(`⚠️ ${data.error || 'No se pudo crear la empresa'}`)
+      setEmpresas(prev => [...prev, { ...data, ...payload, email: data.correo || formData.email, usuarios: 0 }])
       setMensaje('✅ Empresa creada correctamente')
     }
 
@@ -116,6 +189,8 @@ export default function GestionEmpresas() {
       nit: '',
       pais: '',
       ciudad: '',
+      zona_horaria: 'America/Bogota',
+      plan_id: '1',
       contacto: '',
       email: '',
       telefono: '',
@@ -131,10 +206,12 @@ export default function GestionEmpresas() {
       nit: empresa.nit,
       pais: empresa.pais,
       ciudad: empresa.ciudad,
+      zona_horaria: empresa.zona_horaria || 'America/Bogota',
+      plan_id: empresa.plan_id ? String(empresa.plan_id) : '1',
       contacto: empresa.contacto,
-      email: empresa.email,
+      email: empresa.email || empresa.correo || '',
       telefono: empresa.telefono,
-      activo: empresa.activo
+      activo: empresa.activo !== undefined ? Boolean(Number(empresa.activo)) : true
     })
     setEditando(empresa.id)
     setShowForm(true)
@@ -176,6 +253,8 @@ export default function GestionEmpresas() {
               nit: '',
               pais: '',
               ciudad: '',
+                zona_horaria: 'America/Bogota',
+                plan_id: '1',
               contacto: '',
               email: '',
               telefono: '',
@@ -213,24 +292,90 @@ export default function GestionEmpresas() {
             </label>
             <label>
               País
-              <input
-                type="text"
+              <select
                 name="pais"
                 value={formData.pais}
                 onChange={handleChange}
-                placeholder="Colombia"
-              />
+                required
+              >
+                <option value="">Selecciona un país</option>
+                {ubicacionesPorRegion.map(region => (
+                  <optgroup key={region.region} label={region.region}>
+                    {region.paises.map(pais => (
+                      <option key={pais.nombre} value={pais.nombre}>{pais.nombre}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
             </label>
             <label>
               Ciudad
-              <input
-                type="text"
+              <select
                 name="ciudad"
                 value={formData.ciudad}
                 onChange={handleChange}
-                placeholder="Bogotá"
-              />
+                disabled={!formData.pais}
+                required
+              >
+                <option value="">{formData.pais ? 'Selecciona una ciudad' : 'Selecciona primero un país'}</option>
+                {paises.find(pais => pais.nombre === formData.pais)?.ciudades.map(ciudad => (
+                  <option key={ciudad} value={ciudad}>{ciudad}</option>
+                ))}
+              </select>
             </label>
+            <label>
+              Zona horaria de la empresa
+              <select
+                name="zona_horaria"
+                value={formData.zona_horaria}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Selecciona una zona horaria</option>
+                <option value="America/Bogota">America/Bogota</option>
+                <option value="America/Mexico_City">America/Mexico_City</option>
+                <option value="America/New_York">America/New_York</option>
+                <option value="America/Chicago">America/Chicago</option>
+                <option value="America/Argentina/Buenos_Aires">America/Argentina/Buenos_Aires</option>
+                <option value="America/Santiago">America/Santiago</option>
+                <option value="Europe/Madrid">Europe/Madrid</option>
+                <option value="Europe/London">Europe/London</option>
+                <option value="UTC">UTC</option>
+              </select>
+            </label>
+            <label>
+              Plan de la empresa
+              <select
+                name="plan_id"
+                value={formData.plan_id}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Selecciona un plan</option>
+                {planes.map(plan => (
+                  <option key={plan.id} value={plan.id}>{plan.nombre}</option>
+                ))}
+              </select>
+            </label>
+
+            <div className="plan-resumen">
+              <strong>Características del plan</strong>
+              {planSeleccionado ? (
+                <div className="plan-card">
+                  <h4>{planSeleccionado.nombre}</h4>
+                  <ul>
+                    {Array.isArray(planSeleccionado.caracteristicas)
+                      ? planSeleccionado.caracteristicas.map((item, index) => <li key={index}>{item}</li>)
+                      : planSeleccionado.caracteristicas && typeof planSeleccionado.caracteristicas === 'object'
+                        ? Object.values(planSeleccionado.caracteristicas).map((item, index) => <li key={index}>{String(item)}</li>)
+                        : <li>{String(planSeleccionado.caracteristicas || 'Sin características')}</li>
+                  }
+                  </ul>
+                </div>
+              ) : (
+                <p>Selecciona un plan para ver sus características.</p>
+              )}
+            </div>
             <label>
               Contacto Principal
               <input
@@ -242,7 +387,7 @@ export default function GestionEmpresas() {
               />
             </label>
             <label>
-              Email
+              Correo
               <input
                 type="email"
                 name="email"

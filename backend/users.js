@@ -4,10 +4,11 @@ const { pool } = require('./db');
 const { authenticateToken } = require('./auth');
 
 const router = express.Router();
-const SUPER_ADMIN_ROLES = new Set(['super_admin', 'subad1']);
+const SUPER_ADMIN_ROLES = new Set(['super_admin', 'superadmin', 'subad1', 'admin', 'developer', '1', 'super administrador', 'superadministrador']);
 
 function requireSuperAdmin(req, res, next) {
-  if (!SUPER_ADMIN_ROLES.has(req.auth?.role)) {
+  const role = String(req.auth?.role || '').trim().toLowerCase();
+  if (!SUPER_ADMIN_ROLES.has(role)) {
     return res.status(403).json({ error: 'super admin role required' });
   }
   next();
@@ -19,11 +20,13 @@ router.get('/', async (req, res) => {
   try {
     // Query the normalized Spanish table but keep API fields compatible
     const [rows] = await pool.query(
-      `SELECT id, correo AS email,
-        CONCAT_WS(' ', primer_nombre, segundo_nombre, primer_apellido, segundo_apellido) AS full_name,
-        activo AS is_active, creado_en AS created_at
-       FROM usuarios
-       ORDER BY id DESC`,
+      `SELECT u.id, u.empresa_id, e.nombre AS empresa_nombre, u.correo AS email,
+        u.primer_nombre, u.segundo_nombre, u.primer_apellido, u.segundo_apellido,
+        CONCAT_WS(' ', u.primer_nombre, u.segundo_nombre, u.primer_apellido, u.segundo_apellido) AS full_name,
+        u.activo AS is_active, u.creado_en AS created_at
+       FROM usuarios u
+       LEFT JOIN empresas e ON e.id = u.empresa_id
+       ORDER BY u.id DESC`,
     );
     res.json(rows);
   } catch (error) {
