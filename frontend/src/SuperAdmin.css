@@ -438,6 +438,57 @@
   margin-bottom: 20px;
 }
 
+.plan-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(59, 130, 246, 0.08));
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 150px;
+}
+
+.plan-resumen strong {
+  color: #e9d5ff;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.plan-card {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(196, 181, 253, 0.3);
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+}
+
+.plan-card h4 {
+  margin: 0 0 10px;
+  color: #f8fafc;
+  font-size: 16px;
+}
+
+.plan-card ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #dbeafe;
+  display: grid;
+  gap: 8px;
+  line-height: 1.45;
+}
+
+.plan-card li {
+  font-size: 13px;
+}
+
+.plan-resumen p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
 .form-grid label,
 .form-container label {
   display: flex;

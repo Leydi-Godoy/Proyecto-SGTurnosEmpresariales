@@ -33,7 +33,7 @@ Notes and recommendations
 
 Inicio local con XAMPP
 ----------------------
-1. En phpMyAdmin crea la base `sgturnos_empresariales` con cotejamiento `utf8mb4_general_ci`.
+1. En phpMyAdmin crea la base `sgturnos_empresas` con cotejamiento `utf8mb4_general_ci`.
 2. Ejecuta `migrations/00_create_schema.sql`.
 3. Ejecuta `migrations/06_seed_super_admin.sql`.
 4. Copia `.env.example` como `.env` y ajusta `DB_USER` y `DB_PASS` si tu instalación no usa `root` sin contraseña.

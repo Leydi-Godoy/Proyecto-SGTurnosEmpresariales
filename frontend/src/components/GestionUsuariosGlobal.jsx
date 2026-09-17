@@ -8,7 +8,10 @@ export default function GestionUsuariosGlobal() {
   const [mensaje, setMensaje] = useState('')
   const [filtroEmpresa, setFiltroEmpresa] = useState('todas')
   const [formData, setFormData] = useState({
-    nombre: '',
+    primer_nombre: '',
+    segundo_nombre: '',
+    primer_apellido: '',
+    segundo_apellido: '',
     email: '',
     documento: '',
     empresa_id: '',
@@ -17,76 +20,31 @@ export default function GestionUsuariosGlobal() {
   })
 
   useEffect(() => {
-    // Mock data - Empresas
-    setEmpresas([
-      { id: 1, nombre: 'TechCorp Solutions' },
-      { id: 2, nombre: 'Global Services Inc' },
-      { id: 3, nombre: 'Empresa Antigua S.A.' }
-    ])
+    const token = localStorage.getItem('token')
+    const headers = { Authorization: `Bearer ${token}` }
 
-    // Mock data - Usuarios
-    setUsuarios([
-      {
-        id: 1,
-        nombre: 'Miguel Camilo Ruiz Treller',
-        email: 'miguel@techcorp.com',
-        documento: '1023456789',
-        empresa_id: 1,
-        empresa_nombre: 'TechCorp Solutions',
-        rol: '2',
-        rol_nombre: 'Admin Empresa',
-        activo: true,
-        fecha_creacion: '2025-01-10'
-      },
-      {
-        id: 2,
-        nombre: 'Victor Pablo Guerrero',
-        email: 'victor@techcorp.com',
-        documento: '9876543210',
-        empresa_id: 1,
-        empresa_nombre: 'TechCorp Solutions',
-        rol: '3',
-        rol_nombre: 'Planificador',
-        activo: true,
-        fecha_creacion: '2025-02-15'
-      },
-      {
-        id: 3,
-        nombre: 'Leydi Cecilia Godoy',
-        email: 'leydigodoy@sgturnos.com',
-        documento: '1123456789',
-        empresa_id: 1,
-        empresa_nombre: 'TechCorp Solutions',
-        rol: '1',
-        rol_nombre: 'Super Administrador',
-        activo: true,
-        fecha_creacion: '2024-12-01'
-      },
-      {
-        id: 4,
-        nombre: 'Ana García',
-        email: 'ana@globalservices.com',
-        documento: '2234567890',
-        empresa_id: 2,
-        empresa_nombre: 'Global Services Inc',
-        rol: '2',
-        rol_nombre: 'Admin Empresa',
-        activo: true,
-        fecha_creacion: '2025-03-20'
-      },
-      {
-        id: 5,
-        nombre: 'María López',
-        email: 'marialopez@sgturnos.com',
-        documento: '3345678901',
-        empresa_id: 1,
-        empresa_nombre: 'TechCorp Solutions',
-        rol: '5',
-        rol_nombre: 'Empleado',
-        activo: true,
-        fecha_creacion: '2025-04-05'
-      }
-    ])
+    Promise.all([
+      fetch('/api/empresas', { headers }).then(async response => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'No se pudieron cargar las empresas')
+        return data
+      }),
+      fetch('/api/users', { headers }).then(async response => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los usuarios')
+        return data
+      })
+    ]).then(([empresasData, usuariosData]) => {
+      setEmpresas(empresasData)
+      setUsuarios(usuariosData.map(usuario => ({
+        ...usuario,
+        nombre: usuario.full_name,
+        activo: Boolean(usuario.is_active),
+        fecha_creacion: usuario.created_at,
+        rol: String(usuario.rol || '5'),
+        rol_nombre: getRolNombre(usuario.rol || '5')
+      })))
+    }).catch(error => setMensaje(`⚠️ ${error.message}`))
   }, [])
 
   const getRolNombre = (id) => {
@@ -109,7 +67,10 @@ export default function GestionUsuariosGlobal() {
   }
 
   const validarForm = () => {
-    if (!formData.nombre) return 'Nombre es requerido'
+    if (!formData.primer_nombre) return 'Primer nombre es requerido'
+    if (!formData.segundo_nombre) return 'Segundo nombre es requerido'
+    if (!formData.primer_apellido) return 'Primer apellido es requerido'
+    if (!formData.segundo_apellido) return 'Segundo apellido es requerido'
     if (!formData.email) return 'Email es requerido'
     if (!formData.documento) return 'Documento es requerido'
     if (!formData.empresa_id) return 'Empresa es requerida'
@@ -162,7 +123,10 @@ export default function GestionUsuariosGlobal() {
     }
 
     setFormData({
-      nombre: '',
+      primer_nombre: '',
+      segundo_nombre: '',
+      primer_apellido: '',
+      segundo_apellido: '',
       email: '',
       documento: '',
       empresa_id: '',
@@ -175,7 +139,10 @@ export default function GestionUsuariosGlobal() {
 
   const handleEditar = (usuario) => {
     setFormData({
-      nombre: usuario.nombre,
+      primer_nombre: usuario.primer_nombre || '',
+      segundo_nombre: usuario.segundo_nombre || '',
+      primer_apellido: usuario.primer_apellido || '',
+      segundo_apellido: usuario.segundo_apellido || '',
       email: usuario.email,
       documento: usuario.documento,
       empresa_id: usuario.empresa_id.toString(),
@@ -237,7 +204,10 @@ export default function GestionUsuariosGlobal() {
             setShowForm(!showForm)
             setEditando(null)
             setFormData({
-              nombre: '',
+              primer_nombre: '',
+              segundo_nombre: '',
+              primer_apellido: '',
+              segundo_apellido: '',
               email: '',
               documento: '',
               empresa_id: '',
@@ -255,13 +225,47 @@ export default function GestionUsuariosGlobal() {
           <h3>{editando ? '✏️ Editar Usuario' : '➕ Crear Nuevo Usuario'}</h3>
           <div className="form-grid">
             <label>
-              Nombre Completo
+              Primer Nombre
               <input
                 type="text"
-                name="nombre"
-                value={formData.nombre}
+                name="primer_nombre"
+                value={formData.primer_nombre}
                 onChange={handleChange}
-                placeholder="Nombre completo"
+                placeholder="Primer nombre"
+                required
+              />
+            </label>
+            <label>
+              Segundo Nombre
+              <input
+                type="text"
+                name="segundo_nombre"
+                value={formData.segundo_nombre}
+                onChange={handleChange}
+                placeholder="Segundo nombre"
+                required
+              />
+            </label>
+            <label>
+              Primer Apellido
+              <input
+                type="text"
+                name="primer_apellido"
+                value={formData.primer_apellido}
+                onChange={handleChange}
+                placeholder="Primer apellido"
+                required
+              />
+            </label>
+            <label>
+              Segundo Apellido
+              <input
+                type="text"
+                name="segundo_apellido"
+                value={formData.segundo_apellido}
+                onChange={handleChange}
+                placeholder="Segundo apellido"
+                required
               />
             </label>
             <label>
