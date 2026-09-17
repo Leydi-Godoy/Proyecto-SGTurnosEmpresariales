@@ -13,6 +13,7 @@ export default function GestionUsuariosGlobal() {
     primer_apellido: '',
     segundo_apellido: '',
     email: '',
+    password: '',
     documento: '',
     empresa_id: '',
     rol: '5',
@@ -89,9 +90,11 @@ export default function GestionUsuariosGlobal() {
     return null
   }
 
-  const handleGuardar = () => {
+  const handleGuardar = async () => {
     const error = validarForm()
     if (error) return alert(error)
+
+    if (!editando && !formData.password) return alert('Contraseña es requerida')
 
     const empresaSeleccionada = empresas.find(e => e.id === parseInt(formData.empresa_id))
 
@@ -110,15 +113,37 @@ export default function GestionUsuariosGlobal() {
       setMensaje('✅ Usuario actualizado correctamente')
       setEditando(null)
     } else {
-      const nuevoUsuario = {
-        id: Math.max(...usuarios.map(u => u.id), 0) + 1,
-        ...formData,
-        empresa_id: parseInt(formData.empresa_id),
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          fullName: [formData.primer_nombre, formData.segundo_nombre, formData.primer_apellido, formData.segundo_apellido].filter(Boolean).join(' '),
+          primer_nombre: formData.primer_nombre,
+          segundo_nombre: formData.segundo_nombre,
+          primer_apellido: formData.primer_apellido,
+          segundo_apellido: formData.segundo_apellido,
+          documento: formData.documento,
+          empresa_id: Number(formData.empresa_id),
+          rol: Number(formData.rol),
+          activo: formData.activo
+        })
+      })
+      const data = await response.json()
+      if (!response.ok) return setMensaje(`⚠️ ${data.error || 'No se pudo crear el usuario'}`)
+
+      setUsuarios(prev => [...prev, {
+        ...data,
+        nombre: data.fullName,
         empresa_nombre: empresaSeleccionada.nombre,
-        rol_nombre: getRolNombre(formData.rol),
+        rol_nombre: getRolNombre(data.rol),
         fecha_creacion: new Date().toISOString().split('T')[0]
-      }
-      setUsuarios([...usuarios, nuevoUsuario])
+      }])
       setMensaje('✅ Usuario creado correctamente')
     }
 
@@ -128,6 +153,7 @@ export default function GestionUsuariosGlobal() {
       primer_apellido: '',
       segundo_apellido: '',
       email: '',
+      password: '',
       documento: '',
       empresa_id: '',
       rol: '5',
@@ -209,6 +235,7 @@ export default function GestionUsuariosGlobal() {
               primer_apellido: '',
               segundo_apellido: '',
               email: '',
+              password: '',
               documento: '',
               empresa_id: '',
               rol: '5',
@@ -276,6 +303,17 @@ export default function GestionUsuariosGlobal() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="usuario@empresa.com"
+              />
+            </label>
+            <label>
+              Contraseña
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Contraseña del usuario"
+                required={!editando}
               />
             </label>
             <label>
