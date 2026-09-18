@@ -65,9 +65,9 @@ function App() {
     setShowCreateUser(false)
   }
 
-  if (window.location.pathname === '/restablecer-contrasena') return <div className="auth-wrap"><div className="brand-mark">SG</div><h1 className="app-title">SGTurnos Empresariales</h1><p className="subtitle">Recuperación segura de acceso</p><ResetPassword /></div>
+  if (window.location.pathname === '/restablecer-contrasena') return <div className="auth-wrap"><h1 className="app-title">SGTurnos Empresariales</h1><p className="subtitle">Recuperación segura de acceso</p><ResetPassword /></div>
 
-  if (!user) return <div className="auth-wrap"><div className="brand-mark">SG</div><h1 className="app-title">SGTurnos Empresariales</h1><p className="subtitle">Gestión de turnos, personas y operaciones</p><Login onLogin={handleLogin} /></div>
+  if (!user) return <div className="auth-wrap"><h1 className="app-title">SGTurnos Empresariales</h1><p className="subtitle">Gestión de turnos, personas y operaciones</p><Login onLogin={handleLogin} /></div>
 
   // Detectar si es empleado por Id_rol (puede ser número o string)
   const rolStr = String(user.Id_rol || '').toLowerCase().trim()

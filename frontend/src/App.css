@@ -72,8 +72,6 @@
 
 .login-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 34px; align-items: center; }
 .login-left { padding: 10px; border-right: 1px solid var(--line); }
-.login-left h2 { margin: 0 0 8px; color: var(--neon-white); font-size: 25px; }
-.login-left p { color: var(--blue-silver) !important; font-size: 14px; }
 .login-logo {
   display: block;
   width: min(100%, 330px);
@@ -89,6 +87,9 @@
   mask-composite: intersect;
 }
 .login-right { padding: 10px; }
+.login-heading { margin-bottom: 26px; }
+.login-heading h2 { margin: 0 0 8px; color: var(--neon-white); font-size: 30px; line-height: 1.15; }
+.login-heading p { margin: 0; color: var(--blue-silver); font-size: 14px; line-height: 1.5; }
 .login label { display: flex; flex-direction: column; gap: 7px; margin-bottom: 17px; color: var(--silver); font-size: 13px; font-weight: 600; }
 .login input, .create-user input {
   width: 100%;
@@ -100,6 +101,30 @@
   transition: border-color .2s ease, box-shadow .2s ease;
 }
 .login input:focus, .create-user input:focus { border-color: var(--electric-cyan); box-shadow: 0 0 0 3px rgba(15, 193, 249, .12); outline: 0; }
+.password-field { position: relative; display: block; }
+.password-field input { padding-right: 48px; }
+.password-visibility {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  padding: 7px;
+  border: 0;
+  border-radius: 6px;
+  place-items: center;
+  color: var(--blue-silver);
+  background: transparent;
+  cursor: pointer;
+  transform: translateY(-50%);
+  box-shadow: none;
+  touch-action: manipulation;
+  user-select: none;
+}
+.password-visibility:hover { color: var(--light-cyan); background: rgba(15, 193, 249, .1); transform: translateY(-50%); box-shadow: none; }
+.password-visibility:active { color: var(--neon-white); background: rgba(15, 193, 249, .16); }
+.password-visibility svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .login button, .button-primary {
   border: 1px solid rgba(118, 215, 251, .25);
   border-radius: 8px;
@@ -113,7 +138,12 @@
 .login button { width: 160px; }
 .login button:hover, .button-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(15, 123, 246, .3); }
 .login button:disabled { opacity: .6; cursor: wait; transform: none; }
+.login button.password-visibility { width: 34px; padding: 7px; border: 0; color: var(--blue-silver); background: transparent; box-shadow: none; transform: translateY(-50%); }
+.login button.password-visibility:hover { color: var(--light-cyan); background: rgba(15, 193, 249, .1); box-shadow: none; transform: translateY(-50%); }
+.login button.password-visibility:active { color: var(--neon-white); background: rgba(15, 193, 249, .16); }
 .login-forgot { display: block; margin: 18px auto 0; }
+.login button.login-forgot { width: auto; padding: 0; border: 0; color: var(--blue-silver); background: transparent; box-shadow: none; font-weight: 500; }
+.login button.login-forgot:hover { color: var(--light-cyan); background: transparent; box-shadow: none; transform: none; }
 .password-reset-panel h2 { margin: 0 0 10px; color: var(--neon-white); font-size: 23px; }
 .password-reset-panel form { margin-top: 22px; }
 .password-reset-panel button[type="submit"] { width: 100%; }

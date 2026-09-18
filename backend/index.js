@@ -61,6 +61,8 @@ try {
 	const authRouter = require('./auth');
 	app.use('/api/auth', authRouter);
 	app.use('/api/users', require('./users'));
+	app.use('/api/empresas', require('./empresas'));
+	app.use('/api/planes', require('./planes'));
 	app.use('/api/empleado', require('./empleado'));
 	app.use('/api/turnos', require('./routes/turnos'));
 	app.use('/api/plantillas-turno', require('./routes/plantillas'));
