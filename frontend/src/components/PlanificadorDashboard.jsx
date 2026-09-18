@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import PlanificadorHome from './PlanificadorHome'
+import PlantillasTurnos from './PlantillasTurnos'
 import MallasTurnos from './MallasTurnos'
 import AsignacionTurnos from './AsignacionTurnos'
 import ReportesPlanificador from './ReportesPlanificador'
@@ -15,6 +16,12 @@ export default function PlanificadorDashboard({ onLogout }) {
           onClick={() => setActiveTab('inicio')}
         >
           🏠 Inicio
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'plantillas' ? 'active' : ''}`}
+          onClick={() => setActiveTab('plantillas')}
+        >
+          📋 Plantillas
         </button>
         <button
           className={`tab-btn ${activeTab === 'mallas' ? 'active' : ''}`}
@@ -38,6 +45,7 @@ export default function PlanificadorDashboard({ onLogout }) {
 
       <div className="dashboard-content">
         {activeTab === 'inicio' && <PlanificadorHome onLogout={onLogout} />}
+        {activeTab === 'plantillas' && <PlantillasTurnos />}
         {activeTab === 'mallas' && <MallasTurnos />}
         {activeTab === 'asignacion' && <AsignacionTurnos />}
         {activeTab === 'reportes' && <ReportesPlanificador />}

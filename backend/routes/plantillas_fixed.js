@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../db');
+const pool = require('../db');
 const { authenticateToken } = require('../auth');
 
 // Helper function: Log actions to audit table
@@ -56,10 +56,9 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
-    // Allow: 1=Super Admin, 2=Admin Empresa, 3=Planificador
-    if (userRole !== 1 && userRole !== 2 && userRole !== 3) {
+    if (userRole !== 1 && userRole !== 2) {
       return res.status(403).json({
-        error: 'Acceso denegado: Solo Super Admin, Admin Empresa o Planificador pueden crear plantillas'
+        error: 'Acceso denegado: Solo Admin Empresa o Super Admin pueden crear plantillas'
       });
     }
 
@@ -233,9 +232,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const userRole = req.user.Id_rol;
     const userCompany = req.user.empresa_id;
 
-    if (userRole !== 1 && userRole !== 2 && userRole !== 3) {
+    if (userRole !== 1 && userRole !== 2) {
       return res.status(403).json({
-        error: 'Acceso denegado: Solo Super Admin, Admin Empresa o Planificador pueden editar plantillas'
+        error: 'Acceso denegado: Solo Admin Empresa o Super Admin pueden editar plantillas'
       });
     }
 
@@ -355,9 +354,9 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     const userRole = req.user.Id_rol;
     const userCompany = req.user.empresa_id;
 
-    if (userRole !== 1 && userRole !== 2 && userRole !== 3) {
+    if (userRole !== 1 && userRole !== 2) {
       return res.status(403).json({
-        error: 'Acceso denegado: Solo Super Admin, Admin Empresa o Planificador pueden eliminar plantillas'
+        error: 'Acceso denegado: Solo Admin Empresa o Super Admin pueden eliminar plantillas'
       });
     }
 
