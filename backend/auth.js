@@ -69,14 +69,30 @@ async function findUser(correo) {
 
   const normalizedEmail = correo.trim().toLowerCase();
 
-  // Search only in usuarios table (users table doesn't exist in this database)
+  // Company users are stored in `usuarios`, where empresa_id is available.
   try {
     const [rows] = await pool.query(
       `SELECT id AS Id_usuario,
               CONCAT_WS(' ', primer_nombre, segundo_nombre, primer_apellido, segundo_apellido) AS nombre,
-        correo, contrasena, id_rol AS Id_rol, empresa_id, 'usuarios' AS source
+              correo, contrasena, Id_rol, empresa_id,
+              primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, activo,
+              'usuarios' AS source
        FROM usuarios
        WHERE LOWER(correo) = ? AND activo = 1
+       LIMIT 1`,
+      [normalizedEmail],
+    );
+    if (rows[0]) return rows[0];
+  } catch (error) {
+    if (!['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(error.code)) throw error;
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT id AS Id_usuario, full_name AS nombre, email AS correo,
+        password_hash AS contrasena, NULL AS Id_rol, 'users' AS source
+       FROM users
+       WHERE LOWER(email) = ? AND is_active = 1
        LIMIT 1`,
       [normalizedEmail],
     );
@@ -219,29 +235,28 @@ router.post('/login', async (req, res) => {
 async function getUserById(id) {
   if (!pool) return null;
   try {
-    const [urows] = await pool.query(
-      `SELECT id AS Id_usuario, full_name AS nombre, email AS correo,
-        password_hash AS contrasena, NULL AS Id_rol, 'users' AS source
-       FROM users WHERE id = ? LIMIT 1`,
+    const [rows] = await pool.query(
+      `SELECT id AS Id_usuario,
+              CONCAT_WS(' ', primer_nombre, segundo_nombre, primer_apellido, segundo_apellido) AS nombre,
+              correo, contrasena, Id_rol, empresa_id,
+              primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, activo,
+              'usuarios' AS source
+       FROM usuarios WHERE id = ? LIMIT 1`,
       [id],
     );
-    if (urows[0]) return urows[0];
+    if (rows[0]) return rows[0];
   } catch (err) {
     if (!['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(err.code)) throw err;
   }
 
   try {
     const [rows] = await pool.query(
-      `SELECT id AS Id_usuario,
-              CONCAT_WS(' ', primer_nombre, segundo_nombre, primer_apellido, segundo_apellido) AS nombre,
-              correo, contrasena, id_rol AS Id_rol, empresa_id, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, activo
-       FROM usuarios WHERE id = ? LIMIT 1`,
+      `SELECT id AS Id_usuario, full_name AS nombre, email AS correo,
+        password_hash AS contrasena, NULL AS Id_rol, 'users' AS source
+       FROM users WHERE id = ? LIMIT 1`,
       [id],
     );
-    if (rows[0]) {
-      rows[0].source = 'usuarios';
-      return rows[0];
-    }
+    if (rows[0]) return rows[0];
     return null;
   } catch (err) {
     if (['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(err.code)) return null;
@@ -253,7 +268,9 @@ async function getCompanyById(empresaId) {
   if (!pool || !empresaId) return null;
   try {
     const [rows] = await pool.query(
-      `SELECT id, nombre, COALESCE(logo_url, logo) AS logo_url FROM empresas WHERE id = ? LIMIT 1`,
+      `SELECT id, nombre, nit, pais, ciudad, contacto, correo, telefono,
+              activo, zona_horaria, plan_id
+       FROM empresas WHERE id = ? LIMIT 1`,
       [empresaId],
     );
     return rows[0] || null;
