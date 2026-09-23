@@ -222,7 +222,7 @@ router.post('/login', async (req, res) => {
     if (!ok) return res.status(401).json({ error: 'invalid credentials' });
 
     const role = user.Id_rol || (user.correo.toLowerCase() === 'superadmin@sgturnos.com' ? 'super_admin' : 'user');
-    const payload = { Id_usuario: user.Id_usuario, Id_rol: role, empresa_id: user.empresa_id };
+    const payload = { id: user.Id_usuario, role, empresa_id: user.empresa_id };
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'devsecret', { expiresIn: '8h' });
 
     res.json({ token, user: { Id_usuario: user.Id_usuario, nombre: user.nombre, correo: user.correo, Id_rol: role, empresa_id: user.empresa_id } });
