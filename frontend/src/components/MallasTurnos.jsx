@@ -29,7 +29,7 @@ export default function MallasTurnos() {
   })
 
   const [asignacionForm, setAsignacionForm] = useState({
-    malla_id: '',
+    configuracion_id: '',
     considerarEspecialidades: true,
     respetarDisponibilidades: true,
     equilibrarCarga: true,
@@ -180,8 +180,8 @@ export default function MallasTurnos() {
     setError('')
     setSuccess('')
 
-    if (!asignacionForm.malla_id) {
-      setError('Selecciona una malla para asignar empleados')
+    if (!asignacionForm.configuracion_id) {
+      setError('Selecciona una configuración de malla para asignar empleados')
       return
     }
 
@@ -194,8 +194,7 @@ export default function MallasTurnos() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          empresa_id: Number(empresaId),
-          malla_id: Number(asignacionForm.malla_id),
+          malla_id: Number(asignacionForm.configuracion_id),
           criterios: {
             considerarEspecialidades: asignacionForm.considerarEspecialidades,
             respetarDisponibilidades: asignacionForm.respetarDisponibilidades,
@@ -217,7 +216,7 @@ export default function MallasTurnos() {
       setSuccess(`Asignacion completada: ${data.asignacionesRealizadas} empleados asignados (${data.porcentajeCobertura} cobertura)`)
       setShowAsignacion(false)
       setAsignacionForm({
-        malla_id: '',
+        configuracion_id: '',
         considerarEspecialidades: true,
         respetarDisponibilidades: true,
         equilibrarCarga: true,
@@ -381,17 +380,17 @@ export default function MallasTurnos() {
             
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="malla">Malla de Turnos *</label>
+                <label htmlFor="configuracion">Configuración de Malla *</label>
                 <select
-                  id="malla"
+                  id="configuracion"
                   required
-                  value={asignacionForm.malla_id}
-                  onChange={(e) => setAsignacionForm({ ...asignacionForm, malla_id: e.target.value })}
+                  value={asignacionForm.configuracion_id}
+                  onChange={(e) => setAsignacionForm({ ...asignacionForm, configuracion_id: e.target.value })}
                 >
-                  <option value="">-- Selecciona una malla --</option>
-                  {mallas.map((malla) => (
-                    <option key={malla.id} value={malla.id}>
-                      {malla.nombre} ({malla.total_instancias || 0} turnos)
+                  <option value="">-- Selecciona una configuración --</option>
+                  {configuraciones.map((config) => (
+                    <option key={config.id} value={config.id}>
+                      {config.nombre} ({config.cantidad_empleados} empleados, {config.turnos_mensuales_empleado} turnos/mes)
                     </option>
                   ))}
                 </select>

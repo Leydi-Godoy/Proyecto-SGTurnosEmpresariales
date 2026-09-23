@@ -24,6 +24,7 @@ const generadorAsignaciones = {
 
   /**
    * Asigna automaticamente empleados a turnos de una malla
+   * Lee la configuración del admin de empresa (cantidad empleados, tipo distribución, etc)
    */
   asignarAutomaticamente: async (params) => {
     const {
@@ -45,6 +46,35 @@ const generadorAsignaciones = {
       // 1. VALIDACIONES
       if (!mallaId || !empresaId || !usuarioId) {
         throw new Error('Parametros requeridos faltantes: mallaId, empresaId, usuarioId');
+      }
+
+      // 1.5. OBTENER CONFIGURACION DE LA MALLA DEL ADMIN DE EMPRESA
+      const [configMalla] = await pool.query(
+        `SELECT id, nombre, cantidad_empleados, turnos_mensuales_empleado, 
+                tipo_distribucion, horas_por_semana, horas_por_mes, dias_laborales_por_semana
+         FROM configuraciones_malla
+         WHERE id = ? AND empresa_id = ? AND activo = 1`,
+        [mallaId, empresaId]
+      );
+
+      if (configMalla.length === 0) {
+        throw new Error(`Configuración de malla ${mallaId} no encontrada o inactiva para empresa ${empresaId}`);
+      }
+
+      const config = configMalla[0];
+
+      // 1.6. OBTENER TURNOS ASOCIADOS A ESTA CONFIGURACION
+      const [turnosConfig] = await pool.query(
+        `SELECT cmt.plantilla_id, cmt.orden, cmt.duracion_horas, pt.nombre, pt.hora_inicio, pt.hora_fin
+         FROM configuraciones_malla_turnos cmt
+         JOIN plantillas_turno pt ON cmt.plantilla_id = pt.id
+         WHERE cmt.configuracion_id = ?
+         ORDER BY cmt.orden ASC`,
+        [mallaId]
+      );
+
+      if (turnosConfig.length === 0) {
+        throw new Error(`Configuración ${mallaId} no tiene turnos asociados`);
       }
 
       // 2. OBTENER TURNOS DE LA MALLA SIN ASIGNAR
@@ -75,14 +105,17 @@ const generadorAsignaciones = {
         };
       }
 
-      // 3. OBTENER EMPLEADOS ACTIVOS DE LA EMPRESA
+      // 3. OBTENER EMPLEADOS ACTIVOS DE LA EMPRESA (Solo ROL EMPLEADO = 5 via usuario_roles)
       const [empleados] = await pool.query(
         `SELECT e.id, e.usuario_id, e.especialidad_id, 
                 u.primer_nombre, u.segundo_nombre, u.primer_apellido, u.segundo_apellido
          FROM empleados e
-         LEFT JOIN usuarios u ON e.usuario_id = u.id
+         INNER JOIN usuarios u ON u.id = e.usuario_id
+         INNER JOIN usuario_roles ur ON ur.usuario_id = u.id
          WHERE e.empresa_id = ?
+         AND ur.id_rol = 5
          AND e.estado = 'activo'
+         AND u.activo = 1
          ${empleadosIncluir && empleadosIncluir.length > 0 ? `AND e.id IN (${empleadosIncluir.join(',')})` : ''}
          ${empleadosExcluir && empleadosExcluir.length > 0 ? `AND e.id NOT IN (${empleadosExcluir.join(',')})` : ''}
          ORDER BY e.id`,
@@ -224,6 +257,15 @@ const generadorAsignaciones = {
         turnosSinAsignar,
         detalles: asignacionesRealizadas,
         advertencias,
+        configuracion: {
+          malla_id: config.id,
+          malla_nombre: config.nombre,
+          cantidad_empleados_config: config.cantidad_empleados,
+          turnos_mensuales_empleado: config.turnos_mensuales_empleado,
+          tipo_distribucion: config.tipo_distribucion,
+          horas_por_semana: config.horas_por_semana,
+          dias_laborales: config.dias_laborales_por_semana
+        },
         resumen: {
           totalTurnos: instancias.length,
           asignados: asignacionesRealizadas.length,

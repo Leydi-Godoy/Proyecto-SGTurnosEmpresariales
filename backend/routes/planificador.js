@@ -517,10 +517,10 @@ router.get('/cobertura', authenticateToken, async (req, res) => {
 // ENDPOINT 6: Asignar automaticamente empleados a turnos
 router.post('/asignar-automaticamente', authenticateToken, async (req, res) => {
   try {
-    const { empresa_id, malla_id, criterios = {} } = req.body;
+    const { malla_id, criterios = {} } = req.body;
     const userId = req.auth.Id_usuario;
     const userRole = req.auth.Id_rol;
-    const userCompany = req.auth.empresa_id;
+    const empresaId = req.auth.empresa_id; // SOLO del token, NO del body
 
     if (!isPlanificador(userRole)) {
       return res.status(403).json({
@@ -528,27 +528,21 @@ router.post('/asignar-automaticamente', authenticateToken, async (req, res) => {
       });
     }
 
-    if (!checkCompanyAccess(userRole, userCompany, empresa_id)) {
-      return res.status(403).json({
-        error: 'No tiene acceso a esta empresa'
-      });
-    }
-
-    if (!empresa_id || !malla_id) {
+    if (!malla_id) {
       return res.status(400).json({
-        error: 'Parametros requeridos: empresa_id, malla_id'
+        error: 'Parametro requerido: malla_id'
       });
     }
 
     const resultado = await generadorAsignaciones.asignarAutomaticamente({
       mallaId: malla_id,
-      empresaId: empresa_id,
+      empresaId: empresaId,
       usuarioId: userId,
       criterios
     });
 
     await logAction(
-      empresa_id,
+      empresaId,
       userId,
       'ASIGNACION_AUTOMATICA',
       'mallas_turnos',
