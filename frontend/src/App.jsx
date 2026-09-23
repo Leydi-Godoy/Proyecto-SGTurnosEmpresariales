@@ -8,12 +8,16 @@ import SupervisorDashboard from './components/SupervisorDashboard'
 import AdminEmpresaDashboard from './components/AdminEmpresaDashboard'
 import SuperAdminDashboard from './components/SuperAdminDashboard'
 
+const INACTIVITY_LIMIT_MS = 15 * 60 * 1000
+const LAST_ACTIVITY_KEY = 'sgturnos:lastActivity'
+
 function App() {
   const [health, setHealth] = useState(null)
   const [user, setUser] = useState(() => {
     const storedUser = localStorage.getItem('user')
     return storedUser ? JSON.parse(storedUser) : null
   })
+  const [users, setUsers] = useState([])
 
   useEffect(() => {
     fetch('/api/health')
@@ -22,7 +26,61 @@ function App() {
       .catch(() => setHealth({ ok: false }))
   }, [])
 
-  const [users, setUsers] = useState([])
+  useEffect(() => {
+    if (!user) return undefined
+
+    const clearStoredSession = () => {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      localStorage.removeItem(LAST_ACTIVITY_KEY)
+    }
+
+    const expireSession = () => {
+      clearStoredSession()
+      setUser(null)
+      setUsers([])
+    }
+
+    const registerActivity = () => {
+      localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()))
+    }
+
+    const lastActivity = Number(localStorage.getItem(LAST_ACTIVITY_KEY) || 0)
+    if (lastActivity && Date.now() - lastActivity >= INACTIVITY_LIMIT_MS) {
+      expireSession()
+      return undefined
+    }
+
+    registerActivity()
+    const activityEvents = ['pointerdown', 'keydown', 'mousemove', 'scroll', 'touchstart']
+    activityEvents.forEach(eventName => window.addEventListener(eventName, registerActivity, { passive: true }))
+
+    const inactivityTimer = window.setInterval(() => {
+      const currentLastActivity = Number(localStorage.getItem(LAST_ACTIVITY_KEY) || Date.now())
+      if (Date.now() - currentLastActivity >= INACTIVITY_LIMIT_MS) expireSession()
+    }, 1000)
+
+    const handleBackNavigation = () => {
+      expireSession()
+    }
+    window.history.pushState({ sgturnosSession: true }, '', window.location.href)
+    window.addEventListener('popstate', handleBackNavigation)
+
+    const handlePageExit = () => {
+      clearStoredSession()
+    }
+    window.addEventListener('pagehide', handlePageExit)
+    window.addEventListener('beforeunload', handlePageExit)
+
+    return () => {
+      window.clearInterval(inactivityTimer)
+      activityEvents.forEach(eventName => window.removeEventListener(eventName, registerActivity))
+      window.removeEventListener('popstate', handleBackNavigation)
+      window.removeEventListener('pagehide', handlePageExit)
+      window.removeEventListener('beforeunload', handlePageExit)
+    }
+  }, [user])
+
   const [userError, setUserError] = useState('')
   const [showCreateUser, setShowCreateUser] = useState(false)
   const [newUser, setNewUser] = useState({ fullName: '', email: '', password: '' })
@@ -40,12 +98,14 @@ function App() {
 
   function handleLogin(nextUser) {
     localStorage.setItem('user', JSON.stringify(nextUser))
+    localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()))
     setUser(nextUser)
   }
 
   function logout() {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    localStorage.removeItem(LAST_ACTIVITY_KEY)
     setUser(null)
     setUsers([])
   }
