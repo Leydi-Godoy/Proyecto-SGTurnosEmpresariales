@@ -2,7 +2,6 @@ import { useState } from 'react'
 import PerfilEmpresa from './PerfilEmpresa'
 import PerfilesYProfesiones from './PerfilesYProfesiones'
 import ModalidadesTurnos from './ModalidadesTurnos'
-import CatalogoDeTurnos from './CatalogoDeTurnos'
 import EstructuraOrganizacional from './EstructuraOrganizacional'
 import PlantillasCobertura from './PlantillasCobertura'
 import GestionUsuarios from './GestionUsuarios'
@@ -64,12 +63,6 @@ export default function AdminEmpresaDashboard({ onLogout }) {
           🔄 Modalidades Turnos
         </button>
         <button
-          className={`tab-btn ${activeTab === 'catalogo' ? 'active' : ''}`}
-          onClick={() => setActiveTab('catalogo')}
-        >
-          📅 Catálogo Turnos
-        </button>
-        <button
           className={`tab-btn ${activeTab === 'estructura' ? 'active' : ''}`}
           onClick={() => setActiveTab('estructura')}
         >
@@ -96,7 +89,6 @@ export default function AdminEmpresaDashboard({ onLogout }) {
         {activeTab === 'perfil' && <PerfilEmpresa />}
         {activeTab === 'profesiones' && <PerfilesYProfesiones />}
         {activeTab === 'modalidades' && <ModalidadesTurnos />}
-        {activeTab === 'catalogo' && <CatalogoDeTurnos />}
         {activeTab === 'estructura' && <EstructuraOrganizacional />}
         {activeTab === 'cobertura' && <PlantillasCobertura />}
         {activeTab === 'usuarios' && <GestionUsuarios />}

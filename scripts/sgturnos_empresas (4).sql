@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 19-09-2026 a las 01:10:17
+-- Tiempo de generación: 23-09-2026 a las 05:51:37
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -50,6 +50,45 @@ CREATE TABLE `asignaciones_turno` (
   `asignado_por` bigint(20) UNSIGNED DEFAULT NULL,
   `estado` varchar(32) NOT NULL DEFAULT 'pendiente'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `configuraciones_malla`
+--
+
+CREATE TABLE `configuraciones_malla` (
+  `id` int(11) NOT NULL,
+  `empresa_id` bigint(20) UNSIGNED NOT NULL,
+  `nombre` varchar(255) NOT NULL COMMENT 'Nombre de la malla (ej: Malla 2x12h)',
+  `descripcion` text DEFAULT NULL COMMENT 'Descripción detallada de la configuración',
+  `cantidad_empleados` int(11) NOT NULL COMMENT 'Cantidad de empleados que cubre esta malla',
+  `horas_por_semana` int(11) DEFAULT 42 COMMENT 'Horas laborales por semana (Colombia: 42)',
+  `horas_por_mes` int(11) DEFAULT 182 COMMENT 'Horas laborales por mes (Colombia: 182)',
+  `dias_laborales_por_semana` int(11) DEFAULT 5 COMMENT 'Días de trabajo por semana',
+  `turnos_mensuales_empleado` int(11) NOT NULL COMMENT 'Cantidad de turnos mensuales que hace cada empleado (Ej: 20)',
+  `tipo_distribucion` enum('equilibrada','personalizada') DEFAULT NULL COMMENT 'Tipo de distribución: automática o manual',
+  `activo` tinyint(1) DEFAULT 1,
+  `creado_por` bigint(20) UNSIGNED DEFAULT NULL COMMENT 'ID del usuario que creó',
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_por` bigint(20) UNSIGNED DEFAULT NULL COMMENT 'ID del usuario que actualizó',
+  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Almacena las configuraciones de malla de turnos por empresa';
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `configuraciones_malla_turnos`
+--
+
+CREATE TABLE `configuraciones_malla_turnos` (
+  `id` int(11) NOT NULL,
+  `configuracion_id` int(11) NOT NULL COMMENT 'ID de la configuración de malla',
+  `plantilla_id` bigint(20) UNSIGNED NOT NULL COMMENT 'ID de la plantilla de turno',
+  `orden` int(11) NOT NULL COMMENT 'Orden de rotación (1, 2, 3...)',
+  `duracion_horas` int(11) NOT NULL COMMENT 'Horas del turno (8, 12, etc)',
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Relación M2M entre configuraciones y plantillas de turno';
 
 -- --------------------------------------------------------
 
@@ -288,16 +327,21 @@ CREATE TABLE `plantillas_turno` (
   `duracion_minutos` int(10) UNSIGNED NOT NULL,
   `es_nocturno` tinyint(1) NOT NULL DEFAULT 0,
   `patron_recurrencia` varchar(128) DEFAULT NULL,
-  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `tipo` varchar(50) DEFAULT 'FIJO' COMMENT 'FIJO o PERSONALIZADO',
+  `descripcion` text DEFAULT NULL COMMENT 'Descripción de la modalidad',
+  `duracion_base` int(11) DEFAULT NULL COMMENT 'Duración base en horas',
+  `es_personalizada` tinyint(1) DEFAULT 0 COMMENT 'Si es 1, es modalidad personalizada',
+  `patron_rotativo` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Patrón de rotación JSON' CHECK (json_valid(`patron_rotativo`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Volcado de datos para la tabla `plantillas_turno`
 --
 
-INSERT INTO `plantillas_turno` (`id`, `empresa_id`, `nombre`, `hora_inicio`, `hora_fin`, `duracion_minutos`, `es_nocturno`, `patron_recurrencia`, `creado_en`) VALUES
-(1, 3, 'Turno Día', '09:00:00', '17:00:00', 480, 0, 'lunes_a_viernes', '2026-09-18 22:32:57'),
-(2, 3, 'Turno Noche', '19:00:00', '07:00:00', 720, 0, 'lunes_a_viernes', '2026-09-18 22:36:46');
+INSERT INTO `plantillas_turno` (`id`, `empresa_id`, `nombre`, `hora_inicio`, `hora_fin`, `duracion_minutos`, `es_nocturno`, `patron_recurrencia`, `creado_en`, `tipo`, `descripcion`, `duracion_base`, `es_personalizada`, `patron_rotativo`) VALUES
+(1, 3, 'Turno Día', '09:00:00', '17:00:00', 480, 0, 'lunes_a_viernes', '2026-09-18 22:32:57', 'FIJO', NULL, NULL, 0, NULL),
+(2, 3, 'Turno Noche', '19:00:00', '07:00:00', 720, 0, 'lunes_a_viernes', '2026-09-18 22:36:46', 'FIJO', NULL, NULL, 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -685,6 +729,25 @@ ALTER TABLE `asignaciones_turno`
   ADD KEY `fk_asignaciones_asignado_por` (`asignado_por`);
 
 --
+-- Indices de la tabla `configuraciones_malla`
+--
+ALTER TABLE `configuraciones_malla`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_config_nombre_empresa` (`empresa_id`,`nombre`),
+  ADD KEY `idx_configuraciones_empresa` (`empresa_id`),
+  ADD KEY `idx_configuraciones_activo` (`activo`),
+  ADD KEY `idx_config_empresa_activa` (`empresa_id`,`activo`);
+
+--
+-- Indices de la tabla `configuraciones_malla_turnos`
+--
+ALTER TABLE `configuraciones_malla_turnos`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_config_turno_unique` (`configuracion_id`,`plantilla_id`),
+  ADD KEY `idx_config_turno_configuracion` (`configuracion_id`),
+  ADD KEY `idx_config_turno_plantilla` (`plantilla_id`);
+
+--
 -- Indices de la tabla `disponibilidad`
 --
 ALTER TABLE `disponibilidad`
@@ -754,7 +817,8 @@ ALTER TABLE `planes`
 --
 ALTER TABLE `plantillas_turno`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_plantillas_empresa` (`empresa_id`);
+  ADD KEY `idx_plantillas_empresa` (`empresa_id`),
+  ADD KEY `idx_personalizada` (`es_personalizada`);
 
 --
 -- Indices de la tabla `registros_auditoria`
@@ -831,6 +895,18 @@ ALTER TABLE `aprobaciones`
 --
 ALTER TABLE `asignaciones_turno`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `configuraciones_malla`
+--
+ALTER TABLE `configuraciones_malla`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `configuraciones_malla_turnos`
+--
+ALTER TABLE `configuraciones_malla_turnos`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `disponibilidad`
@@ -946,6 +1022,19 @@ ALTER TABLE `asignaciones_turno`
   ADD CONSTRAINT `fk_asignaciones_asignado_por` FOREIGN KEY (`asignado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_asignaciones_empleado` FOREIGN KEY (`empleado_id`) REFERENCES `empleados` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_asignaciones_instancia` FOREIGN KEY (`instancia_turno_id`) REFERENCES `instancias_turno` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `configuraciones_malla`
+--
+ALTER TABLE `configuraciones_malla`
+  ADD CONSTRAINT `configuraciones_malla_ibfk_1` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `configuraciones_malla_turnos`
+--
+ALTER TABLE `configuraciones_malla_turnos`
+  ADD CONSTRAINT `configuraciones_malla_turnos_ibfk_1` FOREIGN KEY (`configuracion_id`) REFERENCES `configuraciones_malla` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `configuraciones_malla_turnos_ibfk_2` FOREIGN KEY (`plantilla_id`) REFERENCES `plantillas_turno` (`id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `disponibilidad`

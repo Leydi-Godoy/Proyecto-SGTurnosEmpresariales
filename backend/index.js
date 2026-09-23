@@ -66,6 +66,7 @@ try {
 	app.use('/api/empleado', require('./empleado'));
 	app.use('/api/turnos', require('./routes/turnos'));
 	app.use('/api/plantillas-turno', require('./routes/plantillas'));
+	app.use('/api/configuraciones-malla', require('./routes/configuraciones-malla'));
 } catch (e) {
 	console.warn('Auth router not available:', e && e.message);
 }

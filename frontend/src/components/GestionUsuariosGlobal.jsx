@@ -61,9 +61,13 @@ export default function GestionUsuariosGlobal() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
+    const defaultPassword = `${String(formData.primer_apellido || '').replace(/\s+/g, '')}123`
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : value,
+      ...(name === 'primer_apellido' && (!prev.password || prev.password === defaultPassword)
+        ? { password: `${value.replace(/\s+/g, '')}123` }
+        : {})
     }))
   }
 
@@ -82,9 +86,12 @@ export default function GestionUsuariosGlobal() {
 
     if (!editando) {
       const docExiste = usuarios.some(u => u.documento === formData.documento)
-      const emailExiste = usuarios.some(u => u.email === formData.email)
+      const emailExiste = usuarios.some(u => u.email.toLowerCase() === formData.email.toLowerCase())
       if (docExiste) return 'Este documento ya existe'
       if (emailExiste) return 'Este email ya existe'
+    } else {
+      const emailExiste = usuarios.some(u => u.id !== editando && u.email.toLowerCase() === formData.email.toLowerCase())
+      if (emailExiste) return 'Este email ya existe en otro usuario de la empresa'
     }
 
     return null
@@ -94,21 +101,46 @@ export default function GestionUsuariosGlobal() {
     const error = validarForm()
     if (error) return alert(error)
 
-    if (!editando && !formData.password) return alert('Contraseña es requerida')
+    if (!editando && !formData.password) {
+      return alert('Escribe el primer apellido para generar la contraseña por defecto')
+    }
 
     const empresaSeleccionada = empresas.find(e => e.id === parseInt(formData.empresa_id))
 
     if (editando) {
-      setUsuarios(prev => prev.map(u =>
-        u.id === editando
-          ? {
-              ...u,
-              ...formData,
-              empresa_id: parseInt(formData.empresa_id),
-              empresa_nombre: empresaSeleccionada.nombre,
-              rol_nombre: getRolNombre(formData.rol)
-            }
-          : u
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/users/${editando}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          primer_nombre: formData.primer_nombre,
+          segundo_nombre: formData.segundo_nombre,
+          primer_apellido: formData.primer_apellido,
+          segundo_apellido: formData.segundo_apellido,
+          documento: formData.documento,
+          empresa_id: Number(formData.empresa_id),
+          rol: Number(formData.rol),
+          activo: formData.activo
+        })
+      })
+      const data = await response.json()
+      if (!response.ok) return setMensaje(`⚠️ ${data.error || 'No se pudo actualizar el usuario'}`)
+
+      setUsuarios(prev => prev.map(u => u.id === editando
+        ? {
+            ...u,
+            ...data,
+            nombre: data.fullName,
+            empresa_nombre: empresaSeleccionada.nombre,
+            rol_nombre: getRolNombre(data.rol),
+            fecha_creacion: u.fecha_creacion
+          }
+        : u
       ))
       setMensaje('✅ Usuario actualizado correctamente')
       setEditando(null)
@@ -170,6 +202,7 @@ export default function GestionUsuariosGlobal() {
       primer_apellido: usuario.primer_apellido || '',
       segundo_apellido: usuario.segundo_apellido || '',
       email: usuario.email,
+      password: '',
       documento: usuario.documento,
       empresa_id: usuario.empresa_id.toString(),
       rol: usuario.rol,
@@ -313,8 +346,8 @@ export default function GestionUsuariosGlobal() {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Contraseña del usuario"
-                required={!editando}
               />
+              <small>Por defecto: PrimerApellido123. Puedes modificarla.</small>
             </label>
             <label>
               Documento
