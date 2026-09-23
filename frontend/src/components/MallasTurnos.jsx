@@ -262,6 +262,35 @@ export default function MallasTurnos() {
               </div>
             </div>
 
+            <div className="form-actions">
+              <button 
+                className="button-primary" 
+                type="submit"
+                disabled={generando}
+              >
+                {generando ? '⏳ Generando...' : '🚀 Generar Malla'}
+              </button>
+              <button
+                className="button-secondary"
+                type="button"
+                onClick={() => {
+                  setShowGenerador(false)
+                  setGeneradorForm({
+                    configuracion_id: '',
+                    fecha_inicio: '',
+                    cantidad_semanas: 4,
+                    tipo_distribucion: 'equilibrada',
+                    pautas_seleccionadas: [],
+                  })
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* FORMULARIO MANUAL */}
       {showForm && (
         <form className="malla-form" onSubmit={handleSubmit}>
