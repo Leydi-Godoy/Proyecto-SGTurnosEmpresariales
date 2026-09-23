@@ -1210,3 +1210,211 @@ table strong {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ========== PERFIL SUPER ADMIN ========== */
+.perfil-panel {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.perfil-panel .panel-header {
+  margin-bottom: 2rem;
+}
+
+.perfil-panel .panel-header h2 {
+  color: #f472b6;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.perfil-panel .subtitle {
+  color: rgba(226, 232, 240, 0.7);
+  font-size: 0.95rem;
+}
+
+.perfil-panel .message {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.perfil-panel .message.success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.perfil-panel .message.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.perfil-view {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(236, 72, 153, 0.2);
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.perfil-section {
+  margin-bottom: 2rem;
+}
+
+.perfil-section h3 {
+  color: #93c5fd;
+  font-size: 1.3rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid rgba(147, 197, 253, 0.2);
+  padding-bottom: 0.75rem;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.info-item {
+  padding: 1rem;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 8px;
+}
+
+.info-item label {
+  display: block;
+  color: #cbd5e1;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.info-item p {
+  color: #f1f5f9;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.perfil-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.perfil-edit {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(236, 72, 153, 0.2);
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.perfil-edit .form-group {
+  margin-bottom: 1.5rem;
+}
+
+.perfil-edit label {
+  display: block;
+  color: #e2e8f0;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.perfil-edit input {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #f1f5f9;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.perfil-edit input:focus {
+  outline: none;
+  border-color: #f472b6;
+  background: rgba(30, 41, 59, 0.8);
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+}
+
+.perfil-edit .form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  justify-content: center;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.badge-super-admin {
+  background: rgba(236, 72, 153, 0.2);
+  color: #f472b6;
+}
+
+.badge-active {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+}
+
+.badge-inactive {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.user-profile-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0;
+  transition: all 0.3s ease;
+}
+
+.user-profile-btn:hover .user-name,
+.user-profile-btn:hover .user-role {
+  color: #f472b6;
+}
+
+@media (max-width: 768px) {
+  .perfil-panel {
+    padding: 1rem;
+  }
+
+  .perfil-view,
+  .perfil-edit {
+    padding: 1rem;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .perfil-section h3 {
+    font-size: 1.1rem;
+  }
+
+  .perfil-actions,
+  .perfil-edit .form-actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}
+
