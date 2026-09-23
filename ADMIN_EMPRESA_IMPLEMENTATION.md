@@ -385,7 +385,7 @@ All components are designed to accept data from backend endpoints:
 
 **Backend** (to be implemented):
 - Node.js + Express (:3001)
-- MySQL (sgturnos_empresariales)
+- MySQL (sgturnos_empresas)
 
 **Design**:
 - Glassmorphism dark theme

@@ -1,0 +1,320 @@
+✅ CHECKLIST INTERACTIVO: PASO 2 FASE 1
+════════════════════════════════════════════════════════════════════════
+
+Usa este checklist mientras implementas. Marca cada item conforme lo completes.
+
+Fecha Inicio: _______________
+Fecha Fin: _______________
+Responsable: _______________
+
+
+📚 FASE 0: PREPARACIÓN (5 minutos)
+════════════════════════════════════════════════════════════════════════
+
+□ He leído el RESUMEN_RAPIDO.txt
+□ He leído el RESUMEN_EJECUTIVO_PASO2_FASE1.md
+□ Tengo acceso a phpMyAdmin
+□ El backend está corriendo (npm run dev)
+□ El frontend está corriendo (npm run dev)
+□ Tengo acceso como Admin Empresa en la aplicación
+
+
+📋 FASE 1: MIGRACIÓN SQL (5 minutos)
+════════════════════════════════════════════════════════════════════════
+
+PASO 1: Abrir phpMyAdmin
+  □ Abri: http://localhost/phpmyadmin
+  □ Inicié sesión exitosamente
+  □ Seleccioné la base de datos correcta
+
+PASO 2: Preparar SQL
+  □ Abrí el archivo: backend/migrations/15_crear_configuraciones_malla.sql
+  □ Copié TODO el contenido
+  □ Lo pegué en la pestaña SQL de phpMyAdmin
+
+PASO 3: Ejecutar SQL
+  □ Hice clic en "Ejecutar"
+  □ Sin mensajes de error
+  □ Mensaje de éxito mostrado
+
+PASO 4: Verificar Tablas
+  □ La tabla "configuraciones_malla" existe
+  □ La tabla "configuraciones_malla_turnos" existe
+  □ Ambas están en la lista de tablas
+
+NOTAS: ___________________________________________________________________
+
+
+⚙️ FASE 2: BACKEND (2 minutos)
+════════════════════════════════════════════════════════════════════════
+
+□ Verifiqué que backend/routes/configuraciones-malla.js existe
+□ Verifiqué que la ruta está registrada en backend/index.js
+□ Detuve el backend: Ctrl+C
+□ Reinicié el backend: npm run dev
+□ El backend inicia sin errores
+□ No hay mensajes de SQL error al iniciar
+□ Los logs están limpios
+
+NOTAS: ___________________________________________________________________
+
+
+🎨 FASE 3: INTEGRACIÓN FRONTEND (5 minutos)
+════════════════════════════════════════════════════════════════════════
+
+□ Verifiqué que ConfiguracionMalla.jsx existe
+□ Verifiqué que ConfiguracionMalla.css existe
+□ Importé el componente en mi Dashboard:
+  □ import ConfiguracionMalla from './components/ConfiguracionMalla'
+□ Agregué la lógica para mostrar el componente:
+  □ {activeTab === 'configuracion' && <ConfiguracionMalla />}
+□ O equivalente en tu estructura de UI
+□ El componente carga sin errores de consola
+□ Los estilos se aplicaron correctamente
+
+UBICACIÓN DEL COMPONENTE: __________________________________________________
+
+NOTAS: ___________________________________________________________________
+
+
+🧪 FASE 4: PRUEBAS BÁSICAS (10 minutos)
+════════════════════════════════════════════════════════════════════════
+
+INICIO:
+  □ Abrí la aplicación: http://localhost:5173
+  □ Inicia sesión como Admin Empresa
+  □ La sección "Configuración de Malla" aparece
+  □ No hay errores en la consola (F12)
+
+PROBAR CREAR:
+  □ Hago clic en "Nueva Configuración" / "Crear"
+  □ Se abre el formulario
+  □ Lleno los campos:
+    □ Nombre: "Malla de Prueba"
+    □ Cantidad empleados: 30
+    □ Cantidad turnos: 2
+  □ Selecciono 2 plantillas (Turno Día, Turno Noche)
+  □ Hago clic en "Guardar"
+  □ ✅ Mensaje de éxito
+  □ ✅ La nueva configuración aparece en la lista
+
+PROBAR LISTAR:
+  □ Puedo ver la lista de configuraciones
+  □ Aparece la que acabo de crear
+  □ Muestra los datos correctamente
+
+PROBAR OBTENER DETALLES:
+  □ Hago clic en la configuración creada
+  □ Se muestran los detalles
+  □ Aparecen los turnos asignados
+  □ Los datos coinciden con lo que ingresé
+
+PROBAR EDITAR:
+  □ Hago clic en "Editar"
+  □ Se abre el formulario con los datos actuales
+  □ Cambio el nombre a: "Malla Modificada"
+  □ Hago clic en "Guardar"
+  □ ✅ Mensaje de éxito
+  □ ✅ El nombre se actualizó en la lista
+
+PROBAR ELIMINAR:
+  □ Hago clic en "Eliminar"
+  □ Confirmo la eliminación (si hay confirmación)
+  □ ✅ Mensaje de éxito
+  □ ✅ La configuración desaparece de la lista
+
+NOTAS: ___________________________________________________________________
+
+
+🔍 FASE 5: VERIFICACIÓN AVANZADA (5 minutos)
+════════════════════════════════════════════════════════════════════════
+
+AUDITORÍA:
+  □ Accedo a phpMyAdmin
+  □ Abro la tabla "registros_auditoria"
+  □ Veo registros de mis acciones (CREATE, UPDATE, DELETE)
+  □ Los detalles son correctos
+
+BASE DE DATOS:
+  □ Verfico que hay registros en configuraciones_malla
+  □ Verfico que hay registros en configuraciones_malla_turnos
+  □ Las relaciones son correctas
+
+API DIRECTA:
+  □ Abrí Postman o curl
+  □ GET /api/configuraciones-malla retorna datos
+  □ POST /api/configuraciones-malla funciona
+  □ PUT /api/configuraciones-malla/:id funciona
+  □ DELETE /api/configuraciones-malla/:id funciona
+
+SEGURIDAD:
+  □ Sin token JWT, rechazo de acceso
+  □ Con token inválido, rechazo
+  □ Con token válido, acceso permitido
+  □ Solo puedo ver configuraciones de mi empresa
+
+NOTAS: ___________________________________________________________________
+
+
+✅ FASE 6: VALIDACIÓN FINAL (5 minutos)
+════════════════════════════════════════════════════════════════════════
+
+DATOS:
+  □ Las 2 tablas existen en phpMyAdmin
+  □ Tienen datos correctos
+  □ Las restricciones funcionan
+
+BACKEND:
+  □ Está corriendo sin errores
+  □ Los 5 endpoints responden
+  □ Las validaciones funcionan
+  □ La auditoría registra acciones
+
+FRONTEND:
+  □ El componente carga sin errores
+  □ Todos los botones funcionan
+  □ Las validaciones muestran errores
+  □ Los mensajes de éxito aparecen
+  □ El diseño se ve profesional
+
+INTEGRACIÓN:
+  □ El componente está integrado en Dashboard
+  □ Es accesible como Admin Empresa
+  □ No interfiere con otras secciones
+
+SEGURIDAD:
+  □ Solo Admins pueden acceder
+  □ Cada empresa ve solo sus datos
+  □ Los datos sensibles están protegidos
+
+NOTAS: ___________________________________________________________________
+
+
+📊 FASE 7: PRUEBAS CON DATOS DE PRUEBA (OPCIONAL)
+════════════════════════════════════════════════════════════════════════
+
+□ Abrí el archivo: backend/seeds/16_seed_configuraciones_malla.sql
+□ Lo ejecuté en phpMyAdmin
+□ Ahora tengo 2 configuraciones de ejemplo
+□ Puedo verlas en la aplicación
+□ Los datos de prueba se muestran correctamente
+
+NOTAS: ___________________________________________________________________
+
+
+🐛 FASE 8: SOLUCIÓN DE PROBLEMAS (Si aplica)
+════════════════════════════════════════════════════════════════════════
+
+PROBLEMA: Migración SQL falló
+  □ Revisé: INSTRUCCIONES_MIGRACION_15.md (Sección problemas)
+  □ Acción tomada: ________________________________________________
+  □ ✅ Resuelto
+
+PROBLEMA: Backend no conecta
+  □ Revisé que la BD está corriendo
+  □ Revisé credenciales en db.js
+  □ Reinicié backend
+  □ Acción tomada: ________________________________________________
+  □ ✅ Resuelto
+
+PROBLEMA: Componente no carga
+  □ Verifiqué que esté importado
+  □ Verifiqué que los archivos existan
+  □ Abrí consola (F12) para ver errores
+  □ Acción tomada: ________________________________________________
+  □ ✅ Resuelto
+
+PROBLEMA: No puedo crear configuración
+  □ Verifiqué que tengo rol Admin Empresa
+  □ Verifiqué que el token JWT sea válido
+  □ Verifiqué que no haya errores en consola
+  □ Acción tomada: ________________________________________________
+  □ ✅ Resuelto
+
+OTROS PROBLEMAS:
+  ________________________________________________________________
+  ________________________________________________________________
+  ________________________________________________________________
+
+
+📋 FASE 9: DOCUMENTACIÓN Y CIERRE
+════════════════════════════════════════════════════════════════════════
+
+□ Documenté los cambios realizados
+□ Tomé notas de cualquier customización
+□ Actualicé documentación interna si aplica
+□ Creé tickets en el sistema de seguimiento si hay pendientes
+□ Notifiqué al equipo que FASE 1 está completa
+□ Archivo de decisiones/cambios: ________________________________________
+
+NOTAS GENERALES:
+________________________________________________________________
+________________________________________________________________
+________________________________________________________________
+
+
+🎉 FASE 10: VALIDACIÓN FINAL DE CHECKLIST
+════════════════════════════════════════════════════════════════════════
+
+CONTEO FINAL:
+  • Fase 0 (Preparación): _____ / 6 items
+  • Fase 1 (Migración SQL): _____ / 13 items
+  • Fase 2 (Backend): _____ / 7 items
+  • Fase 3 (Frontend): _____ / 10 items
+  • Fase 4 (Pruebas Básicas): _____ / 23 items
+  • Fase 5 (Verificación Avanzada): _____ / 13 items
+  • Fase 6 (Validación Final): _____ / 17 items
+  • Fase 7 (Datos Prueba - OPCIONAL): _____ / 4 items
+  • Fase 8 (Solución Problemas - SI APLICA): _____ items
+  • Fase 9 (Documentación): _____ / 5 items
+  ─────────────────────────────────
+  TOTAL ITEMS COMPLETADOS: _____ / 98+ items
+
+PORCENTAJE COMPLETADO: ______ %
+
+□ TODO ESTÁ COMPLETO ✅
+□ FALTAN ITEMS (Ver Fase 8: Solución de Problemas)
+
+
+🏁 RESUMEN FINAL
+════════════════════════════════════════════════════════════════════════
+
+ESTADO GENERAL: ✅ PASO 2 FASE 1 COMPLETADO
+
+✅ Base de datos migrada
+✅ Backend funcional
+✅ Frontend integrado
+✅ Pruebas pasadas
+✅ Auditoría verificada
+✅ Seguridad validada
+
+PERSONAS INVOLUCRADAS:
+  • Backend Developer: ___________________________________
+  • Frontend Developer: __________________________________
+  • DBA/DevOps: _________________________________________
+  • QA: ________________________________________________
+  • Project Manager: _____________________________________
+
+FECHA DE COMPLETACIÓN: ____________________________________
+
+TIEMPO REAL INVERTIDO: ____________________________________
+
+PRÓXIMOS PASOS:
+  1. Documentar cualquier cambio realizado
+  2. Hacer commit a git (rama master)
+  3. Notificar al equipo
+  4. Comenzar FASE 2: Generador Automático
+
+OBSERVACIONES FINALES:
+________________________________________________________________
+________________________________________________________________
+________________________________________________________________
+
+
+═════════════════════════════════════════════════════════════════════════
+Firma del responsable: ______________________   Fecha: __________________
+═════════════════════════════════════════════════════════════════════════
+
+COPIA ESTE CHECKLIST Y ÚSALO MIENTRAS IMPLEMENTAS
+Marca cada item conforme lo completes
+Si algo falla, ve a FASE 8: Solución de Problemas

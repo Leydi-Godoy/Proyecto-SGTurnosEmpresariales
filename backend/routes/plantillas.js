@@ -55,18 +55,34 @@ function calculateDuration(startTime, endTime) {
 // POST /api/plantillas-turno
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { empresa_id, nombre, hora_inicio, hora_fin, es_nocturno, patron_recurrencia } = req.body;
-    const userId = req.user.Id_usuario;
-    const userRole = req.user.Id_rol;
-    const userCompany = req.user.empresa_id;
+    const { empresa_id, nombre, tipo, hora_inicio, hora_fin, es_nocturno, patron_recurrencia, descripcion, es_personalizada, patron_rotativo, duracion_base } = req.body;
+    const userId = req.auth.Id_usuario;
+    const userRole = req.auth.Id_rol;
+    const userCompany = req.auth.empresa_id;
 
     // Validation: Required fields
-    if (!empresa_id || !nombre || !hora_inicio || !hora_fin) {
+    if (!empresa_id || !nombre) {
       return res.status(400).json({
-        error: 'Faltan campos requeridos: empresa_id, nombre, hora_inicio, hora_fin',
+        error: 'Faltan campos requeridos: empresa_id, nombre',
         details: {
           empresa_id: empresa_id ? 'OK' : 'Requerido',
-          nombre: nombre ? 'OK' : 'Requerido',
+          nombre: nombre ? 'OK' : 'Requerido'
+        }
+      });
+    }
+
+    // Si es personalizada, requiere patron_rotativo
+    if (es_personalizada && !patron_rotativo) {
+      return res.status(400).json({
+        error: 'Para modalidades personalizadas se requiere patron_rotativo'
+      });
+    }
+
+    // Si es fija, requiere hora_inicio y hora_fin
+    if (!es_personalizada && (!hora_inicio || !hora_fin)) {
+      return res.status(400).json({
+        error: 'Para modalidades fijas se requieren hora_inicio y hora_fin',
+        details: {
           hora_inicio: hora_inicio ? 'OK' : 'Requerido',
           hora_fin: hora_fin ? 'OK' : 'Requerido'
         }
@@ -89,30 +105,33 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
-    // Validation: Time format
-    if (!isValidTimeFormat(hora_inicio)) {
-      return res.status(400).json({
-        error: 'Formato de hora_inicio inválido. Use HH:MM:SS',
-        valor_recibido: hora_inicio
-      });
-    }
+    // Validation: Time format (solo si no es personalizada)
+    let duracion_minutos = null;
+    if (!es_personalizada) {
+      if (!isValidTimeFormat(hora_inicio)) {
+        return res.status(400).json({
+          error: 'Formato de hora_inicio inválido. Use HH:MM:SS',
+          valor_recibido: hora_inicio
+        });
+      }
 
-    if (!isValidTimeFormat(hora_fin)) {
-      return res.status(400).json({
-        error: 'Formato de hora_fin inválido. Use HH:MM:SS',
-        valor_recibido: hora_fin
-      });
-    }
+      if (!isValidTimeFormat(hora_fin)) {
+        return res.status(400).json({
+          error: 'Formato de hora_fin inválido. Use HH:MM:SS',
+          valor_recibido: hora_fin
+        });
+      }
 
-    // Calculate duration in minutes
-    const duracion_minutos = calculateDuration(hora_inicio, hora_fin);
+      // Calculate duration in minutes
+      duracion_minutos = calculateDuration(hora_inicio, hora_fin);
 
-    if (duracion_minutos <= 0) {
-      return res.status(400).json({
-        error: 'La hora de fin debe ser posterior a la hora de inicio',
-        hora_inicio,
-        hora_fin
-      });
+      if (duracion_minutos <= 0) {
+        return res.status(400).json({
+          error: 'La hora de fin debe ser posterior a la hora de inicio',
+          hora_inicio,
+          hora_fin
+        });
+      }
     }
 
     // Validation: Empresa exists
@@ -130,10 +149,23 @@ router.post('/', authenticateToken, async (req, res) => {
     // Create shift template
     const result = await connection.query(
       `INSERT INTO plantillas_turno (
-        empresa_id, nombre, hora_inicio, hora_fin, duracion_minutos, 
-        es_nocturno, patron_recurrencia, creado_en
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [empresa_id, nombre, hora_inicio, hora_fin, duracion_minutos, es_nocturno || false, patron_recurrencia || null]
+        empresa_id, nombre, tipo, descripcion, hora_inicio, hora_fin, duracion_minutos, duracion_base,
+        es_nocturno, patron_recurrencia, es_personalizada, patron_rotativo, creado_en
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [
+        empresa_id, 
+        nombre, 
+        tipo || 'FIJO', 
+        descripcion || null,
+        hora_inicio || null, 
+        hora_fin || null, 
+        duracion_minutos, 
+        duracion_base || null,
+        es_nocturno || false, 
+        patron_recurrencia || null,
+        es_personalizada || false,
+        es_personalizada && patron_rotativo ? JSON.stringify(patron_rotativo) : null
+      ]
     );
 
     const plantillaId = result.insertId;
@@ -173,8 +205,8 @@ router.post('/', authenticateToken, async (req, res) => {
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { empresa_id } = req.query;
-    const userRole = req.user.Id_rol;
-    const userCompany = req.user.empresa_id;
+    const userRole = req.auth.Id_rol;
+    const userCompany = req.auth.empresa_id;
 
     // Validation: empresa_id required
     if (!empresa_id) {
