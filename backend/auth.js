@@ -20,7 +20,7 @@ function authenticateToken(req, res, next) {
   if (!token) return res.status(401).json({ error: 'token required' });
 
   try {
-    req.auth = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+    req.user = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
     next();
   } catch {
     return res.status(401).json({ error: 'invalid token' });
@@ -118,12 +118,12 @@ router.post('/forgot-password', async (req, res) => {
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
     await pool.query(
-      `DELETE FROM password_reset_tokens
-       WHERE used_at IS NULL AND ((user_id IS NOT NULL AND user_id = ?) OR (legacy_user_id IS NOT NULL AND legacy_user_id = ?))`,
+      `DELETE FROM tokens_restablecimiento_contraseña
+       WHERE utilizado_en IS NULL AND ((usuario_id IS NOT NULL AND usuario_id = ?) OR (usuario_id_legado IS NOT NULL AND usuario_id_legado = ?))`,
       [user.source === 'users' ? user.Id_usuario : null, user.source === 'usuarios' ? user.Id_usuario : null],
     );
     await pool.query(
-      `INSERT INTO password_reset_tokens (user_id, legacy_user_id, token_hash, expires_at)
+      `INSERT INTO tokens_restablecimiento_contraseña (usuario_id, usuario_id_legado, hash_token, expira_en)
        VALUES (?, ?, ?, ?)`,
       [user.source === 'users' ? user.Id_usuario : null, user.source === 'usuarios' ? user.Id_usuario : null, tokenHash, expiresAt],
     );
@@ -143,11 +143,11 @@ router.get('/reset-password/validate', async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      `SELECT id, expires_at, used_at FROM password_reset_tokens WHERE token_hash = ? LIMIT 1`,
+      `SELECT id, expira_en, utilizado_en FROM tokens_restablecimiento_contraseña WHERE hash_token = ? LIMIT 1`,
       [hashResetToken(token)],
     );
     const resetToken = rows[0];
-    const valid = Boolean(resetToken && !resetToken.used_at && new Date(resetToken.expires_at).getTime() > Date.now());
+    const valid = Boolean(resetToken && !resetToken.utilizado_en && new Date(resetToken.expira_en).getTime() > Date.now());
     return res.json(valid ? { valid: true } : { valid: false, error: 'El enlace es inválido o ya expiró.' });
   } catch (err) {
     console.error('password reset validation error', err);
@@ -168,26 +168,26 @@ router.post('/reset-password', async (req, res) => {
   try {
     await connection.beginTransaction();
     const [rows] = await connection.query(
-      `SELECT id, user_id, legacy_user_id, expires_at, used_at
-       FROM password_reset_tokens WHERE token_hash = ? LIMIT 1 FOR UPDATE`,
+      `SELECT id, usuario_id, usuario_id_legado, expira_en, utilizado_en
+       FROM tokens_restablecimiento_contraseña WHERE hash_token = ? LIMIT 1 FOR UPDATE`,
       [hashResetToken(token)],
     );
     const resetToken = rows[0];
-    if (!resetToken || resetToken.used_at || new Date(resetToken.expires_at).getTime() <= Date.now()) {
+    if (!resetToken || resetToken.utilizado_en || new Date(resetToken.expira_en).getTime() <= Date.now()) {
       await connection.rollback();
       return res.status(400).json({ error: 'El enlace es inválido o ya expiró.' });
     }
 
     const passwordHash = await bcrypt.hash(contrasena, 12);
-    const [result] = resetToken.user_id
-      ? await connection.query('UPDATE users SET password_hash = ? WHERE id = ? AND is_active = 1', [passwordHash, resetToken.user_id])
-      : await connection.query('UPDATE usuarios SET contrasena = ? WHERE id = ? AND activo = 1', [passwordHash, resetToken.legacy_user_id]);
+    const [result] = resetToken.usuario_id
+      ? await connection.query('UPDATE users SET password_hash = ? WHERE id = ? AND is_active = 1', [passwordHash, resetToken.usuario_id])
+      : await connection.query('UPDATE usuarios SET contrasena = ? WHERE id = ? AND activo = 1', [passwordHash, resetToken.usuario_id_legado]);
     if (!result.affectedRows) {
       await connection.rollback();
       return res.status(400).json({ error: 'La cuenta ya no está disponible.' });
     }
 
-    await connection.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = ?', [resetToken.id]);
+    await connection.query('UPDATE tokens_restablecimiento_contraseña SET utilizado_en = NOW() WHERE id = ?', [resetToken.id]);
     await connection.commit();
     return res.json({ message: 'Contraseña actualizada correctamente.' });
   } catch (err) {
@@ -222,10 +222,10 @@ router.post('/login', async (req, res) => {
     if (!ok) return res.status(401).json({ error: 'invalid credentials' });
 
     const role = user.Id_rol || (user.correo.toLowerCase() === 'superadmin@sgturnos.com' ? 'super_admin' : 'user');
-    const payload = { id: user.Id_usuario, role };
+    const payload = { Id_usuario: user.Id_usuario, Id_rol: role, empresa_id: user.empresa_id };
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'devsecret', { expiresIn: '8h' });
 
-    res.json({ token, user: { Id_usuario: user.Id_usuario, nombre: user.nombre, correo: user.correo, Id_rol: role } });
+    res.json({ token, user: { Id_usuario: user.Id_usuario, nombre: user.nombre, correo: user.correo, Id_rol: role, empresa_id: user.empresa_id } });
   } catch (err) {
     console.error('auth error', err);
     res.status(503).json({ error: 'database unavailable' });
