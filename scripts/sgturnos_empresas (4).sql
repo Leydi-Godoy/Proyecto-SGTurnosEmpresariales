@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 16-09-2026 a las 00:18:37
+-- Tiempo de generación: 23-09-2026 a las 05:51:37
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -50,6 +50,45 @@ CREATE TABLE `asignaciones_turno` (
   `asignado_por` bigint(20) UNSIGNED DEFAULT NULL,
   `estado` varchar(32) NOT NULL DEFAULT 'pendiente'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `configuraciones_malla`
+--
+
+CREATE TABLE `configuraciones_malla` (
+  `id` int(11) NOT NULL,
+  `empresa_id` bigint(20) UNSIGNED NOT NULL,
+  `nombre` varchar(255) NOT NULL COMMENT 'Nombre de la malla (ej: Malla 2x12h)',
+  `descripcion` text DEFAULT NULL COMMENT 'Descripción detallada de la configuración',
+  `cantidad_empleados` int(11) NOT NULL COMMENT 'Cantidad de empleados que cubre esta malla',
+  `horas_por_semana` int(11) DEFAULT 42 COMMENT 'Horas laborales por semana (Colombia: 42)',
+  `horas_por_mes` int(11) DEFAULT 182 COMMENT 'Horas laborales por mes (Colombia: 182)',
+  `dias_laborales_por_semana` int(11) DEFAULT 5 COMMENT 'Días de trabajo por semana',
+  `turnos_mensuales_empleado` int(11) NOT NULL COMMENT 'Cantidad de turnos mensuales que hace cada empleado (Ej: 20)',
+  `tipo_distribucion` enum('equilibrada','personalizada') DEFAULT NULL COMMENT 'Tipo de distribución: automática o manual',
+  `activo` tinyint(1) DEFAULT 1,
+  `creado_por` bigint(20) UNSIGNED DEFAULT NULL COMMENT 'ID del usuario que creó',
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `actualizado_por` bigint(20) UNSIGNED DEFAULT NULL COMMENT 'ID del usuario que actualizó',
+  `actualizado_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Almacena las configuraciones de malla de turnos por empresa';
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `configuraciones_malla_turnos`
+--
+
+CREATE TABLE `configuraciones_malla_turnos` (
+  `id` int(11) NOT NULL,
+  `configuracion_id` int(11) NOT NULL COMMENT 'ID de la configuración de malla',
+  `plantilla_id` bigint(20) UNSIGNED NOT NULL COMMENT 'ID de la plantilla de turno',
+  `orden` int(11) NOT NULL COMMENT 'Orden de rotación (1, 2, 3...)',
+  `duracion_horas` int(11) NOT NULL COMMENT 'Horas del turno (8, 12, etc)',
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Relación M2M entre configuraciones y plantillas de turno';
 
 -- --------------------------------------------------------
 
@@ -156,6 +195,13 @@ INSERT INTO `empleados` (`id`, `usuario_id`, `empresa_id`, `codigo_empleado`, `e
 CREATE TABLE `empresas` (
   `id` bigint(20) UNSIGNED NOT NULL,
   `nombre` varchar(255) NOT NULL,
+  `nit` varchar(50) DEFAULT NULL,
+  `pais` varchar(100) DEFAULT NULL,
+  `ciudad` varchar(100) DEFAULT NULL,
+  `contacto` varchar(150) DEFAULT NULL,
+  `correo` varchar(255) DEFAULT NULL,
+  `telefono` varchar(50) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
   `zona_horaria` varchar(64) DEFAULT 'UTC',
   `plan_id` bigint(20) UNSIGNED DEFAULT NULL,
   `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -166,15 +212,18 @@ CREATE TABLE `empresas` (
 -- Volcado de datos para la tabla `empresas`
 --
 
-INSERT INTO `empresas` (`id`, `nombre`, `zona_horaria`, `plan_id`, `creado_en`, `actualizado_en`) VALUES
-(1, 'Empresa Demo 1', 'America/Bogota', 1, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
-(2, 'Comercial Norte', 'America/Chicago', 1, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
-(3, 'Tienda Local', 'America/Argentina/Buenos_Aires', 1, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
-(4, 'Servicios Vecinos', 'America/Bogota', 1, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
-(5, 'Oficina Pyme', 'America/New_York', 1, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
-(6, 'Solutions Medio', 'Europe/Madrid', 2, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
-(7, 'Operaciones Sur', 'America/Santiago', 2, '2026-09-14 21:20:32', '2026-09-14 21:20:32'),
-(8, 'Corporativo Premium', 'Europe/London', 3, '2026-09-14 21:20:32', '2026-09-14 21:20:32');
+INSERT INTO `empresas` (`id`, `nombre`, `nit`, `pais`, `ciudad`, `contacto`, `correo`, `telefono`, `activo`, `zona_horaria`, `plan_id`, `creado_en`, `actualizado_en`) VALUES
+(1, 'Empresa Demo 1', '900123456-1', 'Colombia', 'Bogotá', 'María García López', 'contacto@empresa-demo.com', '3101234567', 1, 'America/Bogota', 1, '2026-09-14 21:20:32', '2026-09-18 20:30:01'),
+(2, 'Comercial Norte', '900234567-1', 'Colombia', 'Bogotá', 'Juan Martínez Pérez', 'contacto@comercial-norte.com', '3102345678', 1, 'America/Chicago', 1, '2026-09-14 21:20:32', '2026-09-18 20:27:45'),
+(3, 'Tienda Local', '900345678-1', 'Colombia', 'Medellín', 'Carlos Rodríguez Silva', 'contacto@tienda-local.com', '3103456789', 1, 'America/Argentina/Buenos_Aires', 1, '2026-09-14 21:20:32', '2026-09-18 20:27:45'),
+(4, 'Servicios Vecinos', '900456789-1', 'Colombia', 'Cali', 'Ana González Ruiz', 'contacto@servicios-vecinos.com', '3104567890', 1, 'America/Bogota', 1, '2026-09-14 21:20:32', '2026-09-18 20:27:45'),
+(5, 'Oficina Pyme', '900567890-1', 'Estados Unidos', 'Nueva York', 'Robert Johnson', 'contact@oficina-pyme.com', '+1-212-555-0100', 1, 'America/New_York', 1, '2026-09-14 21:20:32', '2026-09-18 20:27:45'),
+(6, 'Solutions Medio', '900678901-1', 'España', 'Madrid', 'Fernando García López', 'contacto@solutions-medio.com', '+34-91-5550100', 1, 'Europe/Madrid', 2, '2026-09-14 21:20:32', '2026-09-18 20:27:45'),
+(7, 'Operaciones Sur', '900789012-1', 'Chile', 'Santiago', 'José Ramírez Flores', 'contacto@operaciones-sur.com', '+56-2-25550100', 1, 'America/Santiago', 2, '2026-09-14 21:20:32', '2026-09-18 20:27:45'),
+(8, 'Corporativo Premium', '900890123-1', 'Reino Unido', 'Londres', 'Michael Smith', 'contact@corporativo-premium.com', '+44-20-75550100', 1, 'Europe/London', 3, '2026-09-14 21:20:32', '2026-09-18 20:27:45'),
+(9, 'Novatech S.A.', '900888777-1', 'Colombia', 'Bogotá', 'Carlor Fernando Araujo', 'araujo@novatech.com', '3009998887', 1, 'America/Bogota', 2, '2026-09-16 23:10:08', '2026-09-17 03:39:32'),
+(10, 'Fedora Inc.', '900567345-1', 'Colombia', 'Bogotá', 'Elton Jhon Gil', 'elton@fedora.com', '3006665544', 1, 'America/Bogota', 1, '2026-09-17 03:17:06', '2026-09-17 03:41:28'),
+(11, 'Italo SAS', '900666555-1', 'Colombia', 'Bogotá', 'Andres lopez', 'lopez@italo.com', '3124145443', 1, 'America/Bogota', 1, '2026-09-17 03:30:39', '2026-09-17 03:40:28');
 
 -- --------------------------------------------------------
 
@@ -278,8 +327,21 @@ CREATE TABLE `plantillas_turno` (
   `duracion_minutos` int(10) UNSIGNED NOT NULL,
   `es_nocturno` tinyint(1) NOT NULL DEFAULT 0,
   `patron_recurrencia` varchar(128) DEFAULT NULL,
-  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp(),
+  `tipo` varchar(50) DEFAULT 'FIJO' COMMENT 'FIJO o PERSONALIZADO',
+  `descripcion` text DEFAULT NULL COMMENT 'Descripción de la modalidad',
+  `duracion_base` int(11) DEFAULT NULL COMMENT 'Duración base en horas',
+  `es_personalizada` tinyint(1) DEFAULT 0 COMMENT 'Si es 1, es modalidad personalizada',
+  `patron_rotativo` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Patrón de rotación JSON' CHECK (json_valid(`patron_rotativo`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `plantillas_turno`
+--
+
+INSERT INTO `plantillas_turno` (`id`, `empresa_id`, `nombre`, `hora_inicio`, `hora_fin`, `duracion_minutos`, `es_nocturno`, `patron_recurrencia`, `creado_en`, `tipo`, `descripcion`, `duracion_base`, `es_personalizada`, `patron_rotativo`) VALUES
+(1, 3, 'Turno Día', '09:00:00', '17:00:00', 480, 0, 'lunes_a_viernes', '2026-09-18 22:32:57', 'FIJO', NULL, NULL, 0, NULL),
+(2, 3, 'Turno Noche', '19:00:00', '07:00:00', 720, 0, 'lunes_a_viernes', '2026-09-18 22:36:46', 'FIJO', NULL, NULL, 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -297,6 +359,15 @@ CREATE TABLE `registros_auditoria` (
   `detalles` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`detalles`)),
   `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `registros_auditoria`
+--
+
+INSERT INTO `registros_auditoria` (`id`, `empresa_id`, `usuario_id`, `accion`, `tabla_objetivo`, `id_objetivo`, `detalles`, `creado_en`) VALUES
+(1, 3, 55667788, 'crear_plantilla_turno', 'plantillas_turno', 1, '{\"nombre\":\"Turno matutino\",\"hora_inicio\":\"09:00:00\",\"hora_fin\":\"17:00:00\"}', '2026-09-18 22:32:57'),
+(2, 3, 55667788, 'actualizar_plantilla_turno', 'plantillas_turno', 1, '{\"nombre\":\"Turno Día\",\"hora_inicio\":\"09:00:00\",\"hora_fin\":\"17:00:00\",\"patron_recurrencia\":\"lunes_a_viernes\"}', '2026-09-18 22:34:29'),
+(3, 3, 55667788, 'crear_plantilla_turno', 'plantillas_turno', 2, '{\"nombre\":\"Turno Noche\",\"hora_inicio\":\"19:00:00\",\"hora_fin\":\"07:00:00\"}', '2026-09-18 22:36:46');
 
 -- --------------------------------------------------------
 
@@ -373,12 +444,29 @@ CREATE TABLE `solicitudes_novedad` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `tokens_restablecimiento_contraseña`
+--
+
+CREATE TABLE `tokens_restablecimiento_contraseña` (
+  `id` int(11) NOT NULL,
+  `usuario_id` int(11) DEFAULT NULL,
+  `usuario_id_legado` int(11) DEFAULT NULL,
+  `hash_token` varchar(64) NOT NULL,
+  `expira_en` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `utilizado_en` timestamp NULL DEFAULT NULL,
+  `creado_en` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `usuarios`
 --
 
 CREATE TABLE `usuarios` (
   `id` bigint(20) UNSIGNED NOT NULL,
   `empresa_id` bigint(20) UNSIGNED NOT NULL,
+  `documento` varchar(50) DEFAULT NULL,
   `correo` varchar(320) NOT NULL,
   `primer_nombre` varchar(128) DEFAULT NULL,
   `segundo_nombre` varchar(128) DEFAULT NULL,
@@ -397,72 +485,74 @@ CREATE TABLE `usuarios` (
 -- Volcado de datos para la tabla `usuarios`
 --
 
-INSERT INTO `usuarios` (`id`, `empresa_id`, `correo`, `primer_nombre`, `segundo_nombre`, `primer_apellido`, `segundo_apellido`, `contrasena`, `telefono`, `activo`, `esta_activo`, `creado_en`, `actualizado_en`, `id_rol`) VALUES
-(11122, 1, 'veronicalara@sgturnos.com', 'Veronica', 'Luciana', 'Lara', 'Carranza', '$2a$12$NKJesdn2mmCLr8jR6ZaoNuKDcK1vAHqAcN2I7e/hRl4lMM8oYh7dW', NULL, 1, 1, '2026-09-15 00:00:07', '2026-09-15 12:02:43', 2),
-(10203040, 2, 'rosajimenez@sgturnos.com', 'Rosa', 'Magnolia', 'Jimenez', 'Tafur', '$2a$12$0eBi7KhzCDAphEcIoH0bT.86L1t48lO0WDWueapKQ3nu328ljttHG', NULL, 1, 1, '2026-09-15 00:00:08', '2026-09-15 12:02:43', 2),
-(10293847, 3, 'oscarcampos@sgturnos.com', 'Oscar', 'Santiago', 'Campos', 'Ovalle', '$2a$12$dFwLrgrckIAQf3L3OsY12O9u0Tjephmz7h5kDciDNr4c61GfXoZL6', NULL, 1, 1, '2026-09-15 00:00:08', '2026-09-15 12:02:44', 2),
-(10439581, 4, 'beatrizmendoza@sgturnos.com', 'Beatriz', 'Ana', 'Mendoza', 'Trump', '$2a$12$67jPgk80hS4fzRFVzYGwTOoQ7c3sE90fbx4xE5Tige2E1KiCiCoHO', NULL, 1, 1, '2026-09-15 00:00:09', '2026-09-15 12:02:45', 2),
-(12233445, 5, 'victorguerrero@sgturnos.com', 'Victor', 'Pablo', 'Guerrero', 'Libano', '$2a$12$ejQC7rQC3Q.LS0cWYhqsGejPsOIoU4SnWU/jL.C2ouI56ymZXUOKq', NULL, 1, 1, '2026-09-15 00:00:09', '2026-09-15 12:02:45', 2),
-(13579246, 6, 'pedrosanchez@sgturnos.com', 'Pedro', 'Camilo', 'Sanchez', 'Tolosa', '$2a$12$Wnw7c6WyiJ67/j1MPvHleOGUSIIokcAq98L98n.7YWc4EtJNRJTDq', NULL, 1, 1, '2026-09-15 00:00:10', '2026-09-15 12:02:45', 2),
-(14142135, 7, 'isabelmunoz@sgturnos.com', 'Isabel', 'Alejandra', 'Muñoz', 'Aguilar', '$2a$12$eluTSsqVh7vNsKHzB8gxXOcJ6PdkLKgK4b2AqUR5AHi2CSKXLQVDm', NULL, 1, 1, '2026-09-15 00:00:10', '2026-09-15 12:02:46', 2),
-(16180339, 8, 'miguelruiz@sgturnos.com', 'Miguel', 'Camilo', 'Ruiz', 'Treller', '$2a$12$6ReIcMtXMM.zerDzeoXvjOdjSy.CV7cBSLGVDVF50HH01kIF5T2Ku', NULL, 1, 1, '2026-09-15 00:00:10', '2026-09-15 12:02:47', 2),
-(20304050, 1, 'fernandoluna@sgturnos.com', 'Fernando', 'Luis', 'Luna', 'Rayo', '$2a$12$3x.jIXjnYQMVqGWacONNWulHO8w9OhCoJ4bc96S6DbcA6qFAsMThy', NULL, 1, 1, '2026-09-15 00:00:11', '2026-09-15 12:02:47', 4),
-(24681357, 2, 'lauraramirez@sgturnos.com', 'Laura', 'Andrea', 'Ramirez', 'Valles', '$2a$12$CdpjaksSNDybzV2FRT/E8.FpqUYV/KDOmMLFl5x1qsREOyoTnDxEa', NULL, 1, 1, '2026-09-15 00:00:12', '2026-09-15 12:02:48', 4),
-(27182818, 3, 'elenavargas@sgturnos.com', 'Elena', 'Sofia', 'Vargas', 'Brush', '$2a$12$EsGIctWgqrTmyIMZJyLChOldBRxyHTGiXZCiSjFBZgR9PwFtbxrAC', NULL, 1, 1, '2026-09-15 00:00:12', '2026-09-15 12:02:48', 4),
-(29979245, 4, 'patricianavarro@sgturnos.com', 'Patricia', 'Nenitza', 'Navarro', 'Palma', '$2a$12$WIP5nrIzWfME1ljKAOwjE.YBlu/Xwjm5HJIzzoHeEvye9T2Z1VLl.', NULL, 1, 1, '2026-09-15 00:00:13', '2026-09-15 12:02:48', 4),
-(30405060, 5, 'eduardosoto@sgturnos.com', 'Eduardo', 'Felipe', 'Soto', 'Cardozo', '$2a$12$ps.Mv07N65gs8jWMrQMAt.ME2E1dFtv/8mHFU2ZtwEvwxKRBlV2ii', NULL, 1, 1, '2026-09-15 00:00:13', '2026-09-15 12:02:49', 4),
-(31415926, 6, 'diegotorres@sgturnos.com', 'Diego', 'David', 'Torres', 'Gomez', '$2a$12$oQBCa0M9.vgj3kv210k2g.ov1I65XQP4AuKotzFsZz0bS/17ZZDr.', NULL, 1, 1, '2026-09-15 00:00:13', '2026-09-15 12:02:49', 4),
-(40506070, 7, 'albertocruz@sgturnos.com', 'Alberto', 'Emiro', 'Cruz', 'Hunt', '$2a$12$U.wagz1PBEN9ZyrJB/vyHuEmnXWfs2s3raOj5rAUbHSGTAxcqNwtK', NULL, 1, 1, '2026-09-15 00:00:14', '2026-09-15 12:02:50', 4),
-(44455566, 8, 'paulamolina@sgturnos.com', 'Paula', 'Gabriela', 'Molina', 'Terrence', '$2a$12$oJyIp234zvp9/mW2TI0uhO3M1o5qRxifyavzju/OVgpOcArDJk7La', NULL, 1, 1, '2026-09-15 00:00:14', '2026-09-15 12:02:50', 4),
-(48273377, 1, 'dantegebel@sgturnos.com', 'Dante', 'jose', 'Gebel', 'Urrutia', '$2a$12$O3h3thfvnLyvGn0pYEafPeMWcY.A7P3pBe.wOeCoiIa2xBtskYqCe', NULL, 1, 1, '2026-09-15 00:00:15', '2026-09-15 12:02:51', 3),
-(50288419, 2, 'teresacastro@sgturnos.com', 'Teresa', 'Maria', 'Castro', 'Lopez', '$2a$12$Xd4GisLa5Eq3CmsX92C/IeYeDI/VM6DUhBozfjiXa4s5cHGYWNq2m', NULL, 1, 1, '2026-09-15 00:00:15', '2026-09-15 12:02:51', 3),
-(55667788, 3, 'olgaespinoza@sgturnos.com', 'Olga', 'Shakira', 'Espinoza', 'Castrol', '$2a$12$Ti35e4LCsTnWVDoFEuWbNO2sztasU7iI4G/B8mnW8lokcP5Bmu6Be', NULL, 1, 1, '2026-09-15 00:00:16', '2026-09-15 12:02:52', 3),
-(56473829, 4, 'luciavaldez@sgturnos.com', 'Lucia', 'Daniela', 'Valdez', 'Florez', '$2a$12$97f5NlS7/XcTnp2PROtU6e23NMT4qfYkqmm7YOWVAAsXRhZPL1hvq', NULL, 1, 1, '2026-09-15 00:00:16', '2026-09-15 12:02:52', 3),
-(57721566, 5, 'javiermoreno@sgturnos.com', 'Javier', 'Francisco', 'Moreno', 'Daza', '$2a$12$ITAVKBLePr.eIdYHZUAQhuFb8FYp2K/BVT1dGXmupaqIXcYIZz34m', NULL, 1, 1, '2026-09-15 00:00:17', '2026-09-15 12:02:53', 3),
-(60708090, 6, 'monicaparedes@sgturnos.com', 'Monica', 'Lucia', 'Paredes', 'Camargo', '$2a$12$dr5NAJzNQOHfiIJsqRCBnOm/VwjxHHOdF4zdGMHiubWjhPVUVyuQ6', NULL, 1, 1, '2026-09-15 00:00:17', '2026-09-15 12:02:53', 3),
-(66677788, 7, 'claudiaquintana@sgturnos.com', 'Claudia', 'Marcela', 'Quintana', 'Fajardo', '$2a$12$0.SntBBwx2Wfix2m2NPMrutaKIPmVsokFtyYQjf3m1pJcUNeSNgr.', NULL, 1, 1, '2026-09-15 00:00:17', '2026-09-15 12:02:54', 3),
-(66778899, 8, 'sofiahernandez@sgturnos.com', 'Sofia', '', 'Hernandez', NULL, '$2a$12$i/kIcOGPrTwF.S1EqXd13eAwSN3wCmGTEOkBTsPWmRYm7E1jNE8gG', NULL, 1, 1, '2026-09-15 00:00:18', '2026-09-15 12:02:54', 3),
-(69314718, 1, 'franciscoromero@sgturnos.com', 'Francisco', 'Javier', 'Romero', 'Caldas', '$2a$12$lvRAA3KBDd5dc6Y5lHCAWezJJHvpwxlqYz5iRt9iAYdVe89x.uv7a', NULL, 1, 1, '2026-09-15 00:00:18', '2026-09-15 12:02:56', 5),
-(70809010, 2, 'gabrielavega@sgturnos.com', 'Gabriela', 'Filipa', 'Vega', 'Alarcon', '$2a$12$P26jtxt.kIWaGN7pZnV4MON4v60YzaS0AJst4R6WA4WHNqd2vEh5u', NULL, 1, 1, '2026-09-15 00:00:19', '2026-09-15 12:02:57', 5),
-(71828182, 3, 'carmendiaz@sgturnos.com', 'Carmen', 'Isabelina', 'Diaz', 'Capera', '$2a$12$/g./CD/lQ5B02ZmwratHE.DUCR90DshbfzwvR.ZKjekh4pSMqLx3K', NULL, 1, 1, '2026-09-15 00:00:19', '2026-09-15 12:02:57', 5),
-(73205080, 4, 'antonioortega@sgturnos.com', 'Antonio', 'Jose', 'Ortega', 'Finch', '$2a$12$WrX0aGU9Us0mgJBPk7i9KOOPi2iSJ2xBZK3qgT2ZUSqJgQZRd1JJ2', NULL, 1, 1, '2026-09-15 00:00:20', '2026-09-15 12:02:58', 5),
-(77788899, 5, 'ricardopena@sgturnos.com', 'Ricardo', 'Hasam', 'Peña', 'Gareca', '$2a$12$SaxsS6QcGvIHCKuMhxGiquEB6B3RsxqeFFG7zSD17daTxrPd43NB.', NULL, 1, 1, '2026-09-15 00:00:20', '2026-09-15 12:02:58', 5),
-(80101476, 6, 'edissontaborda@sgturnos.com', 'Edisson', 'Andrés', 'Taborda', 'Reyes', '$2a$12$t.2hb75S2PO4KXTj8N2KzORQt8rUwc62z4jAMY9e6nrEqeygZM5.S', NULL, 1, 1, '2026-09-15 00:00:21', '2026-09-15 12:02:59', 1),
-(80901020, 7, 'silviarios@sgturnos.com', 'Silvia', 'Maria', 'Rios', 'Patarroyo', '$2a$12$5XDtzRy9YNGJ4RD.6qCJpuqicHuh11cVdxwxyqEUEtpQmx0vsKpD.', NULL, 1, 1, '2026-09-15 00:00:21', '2026-09-15 12:02:59', 5),
-(82012513, 8, 'nataliaflores@sgturnos.com', 'Natalia', 'Nikol', 'Flores', 'Catalan', '$2a$12$HttC3JV.YwO6Z/w6UJsQIOjqIjLIRSwz6e/82p8uMrg1po3MRsskW', NULL, 1, 1, '2026-09-15 00:00:21', '2026-09-15 12:03:00', 5),
-(83147098, 1, 'robertosilva@sgturnos.com', 'Roberto', 'Carlos', 'Silva', 'Clark', '$2a$12$Ec/A0sSOOPKgmbEqZa7xWeoHxDBFb7y.jbjUcoWrxkfztK85WU5WC', NULL, 1, 1, '2026-09-15 00:00:22', '2026-09-15 12:03:00', 5),
-(87654321, 2, 'marialopez@sgturnos.com', 'Maria', NULL, 'Lopez', NULL, '$2a$12$cQqplzP0s71MQamY2iEdJOxfcL57DAURQQLyZdEtj3vQYE59916fa', NULL, 1, 1, '2026-09-15 00:00:22', '2026-09-15 12:03:01', 5),
-(95462288, 3, 'susanaruiz@sgturnos.com', 'Susana', 'cintia', 'Ruiz', 'Cruz', '$2a$12$D5iytk.R9L6vsgxBjYPGleX6lRGvxEqZrHMUcECM7WWhLrQbTWdEO', NULL, 1, 1, '2026-09-15 00:00:23', '2026-09-15 12:03:02', 5),
-(95957217, 4, 'sergioreyes@sgturnos.com', 'Sergio', 'Andres', 'Reyes', 'Segura', '$2a$12$Z84LxXJigibCljZzYB3/GeFHM/fcE0/tLthOJI8LI6kMgANA6AGau', NULL, 1, 1, '2026-09-15 00:00:23', '2026-09-15 12:03:03', 5),
-(99001122, 5, 'raulmedina@sgturnos.com', 'Raul', 'Antonio', 'Medina', 'Gutierrez', '$2a$12$.7Iuk4T15b7OMNhYbUSkWu8kwwPENxUzflQbbQXavm3zbgYrRLzfG', NULL, 1, 1, '2026-09-15 00:00:24', '2026-09-15 12:03:04', 5),
-(99887766, 6, 'anagomez@sgturnos.com', 'Ana', 'Gomez', 'Gomez', NULL, '$2a$12$uU0KNDQuFfRvSkNtmjZZM.TUEPfpZnUP6kQrtP124bRD10Y4qncwm', NULL, 1, 1, '2026-09-15 00:00:24', '2026-09-15 12:03:05', 5),
-(99900011, 7, 'estebansalinas@sgturnos.com', 'Esteban', 'Pablo', 'Salinas', 'Morgan', '$2a$12$jVvL51Z3Gs7KBfzA1iu3BumCTOxgJyRr7IvJCrTsXYm4Ng2WuD5PC', NULL, 1, 1, '2026-09-15 00:00:25', '2026-09-15 12:03:06', 5),
-(123456123, 8, 'kenshinkido@sgturnos.com', 'Kenshin', 'Goku', 'Kido', 'Himura', '$2a$12$x3E5YTcLIKPnSDoRuDcMAu1VIquKk8v2FeiiJWavQKQDqDhtjIOGC', NULL, 1, 1, '2026-09-15 00:00:25', '2026-09-15 12:03:07', 5),
-(1090807123, 1, 'leonardodicaprio@sgturnos.com', 'Leonardo', 'Ramiro', 'Dicaprio', 'Sosavita', '$2a$12$eV0jZr0lEUJKeF.0s3HbqOMCtdXZ95XjBbCXMFvVMklT.UZG97he2', NULL, 1, 1, '2026-09-15 00:00:25', '2026-09-15 12:03:09', 5),
-(1101101101, 2, 'yuliydaza@sgturnos.com', 'Yuliy', 'Paola', 'Daza', 'Oviedo', '$2a$12$I5KZ8LPR.3brpXgclWmgR.KxjO49hbePI4WR7AGjAkx4TNpwJ3bRa', NULL, 1, 1, '2026-09-15 00:00:26', '2026-09-15 12:03:10', 5),
-(1101246975, 3, 'ramonjirafales@sgturnos.com', 'Ramon', 'Federico', 'Jirafales', 'Barriga', '$2a$12$Kn11crZ91HHPSk1V9N7NdeFqHaYyf/e0Puq7leeID0ilec3O4.Stm', NULL, 1, 1, '2026-09-15 00:00:26', '2026-09-15 12:03:11', 5),
-(1102102101, 4, 'melissasolano@sgturnos.com', 'Melissa', 'Andrea', 'Solano', 'Patiño', '$2a$12$gy/Zf/i9j3kuS3ClpMb9nuoqq62Mlmff.HwGH/fbq/ibJ4ksS6ZFy', NULL, 1, 1, '2026-09-15 00:00:27', '2026-09-15 12:03:12', 5),
-(1103103101, 5, 'angelicaprada@sgturnos.com', 'Angelica', 'Milena', 'Prada', 'Cañón', '$2a$12$j4kezMnhHL6A5HyuzRH9me5dVgQAtQkSRQ61qVlz.ixMLkqeB2HmG', NULL, 1, 1, '2026-09-15 00:00:27', '2026-09-15 12:03:12', 5),
-(1104104101, 6, 'jesusbeltran@sgturnos.com', 'Jesús', 'Daniel', 'Beltrán', 'Rodríguez', '$2a$12$sasqPIMXRLOIeqieG15ar.wFPRvOlUNwjTl0QMqsrj9/5QUgsQ9G.', NULL, 1, 1, '2026-09-15 00:00:28', '2026-09-15 12:03:14', 5),
-(1104774847, 7, 'leydigodoy@sgturnos.com', 'Leydi', 'Cecilia', 'Godoy', 'Ortiz', '$2a$12$kV8rHyebd9TL0884au/eO.optpcg8LIcr7aSnQrKpiYZ6GT.PlnRW', NULL, 1, 1, '2026-09-15 00:00:28', '2026-09-15 12:03:15', 1),
-(1105105104, 8, 'carlosrodriguez@sgturnos.com', 'Carlos', 'Andrés', 'Rodríguez', 'Ochoa', '$2a$12$zPInPqXFbWNvvVIVGNxNcOwkudbT4YNTIJLYjtCoVCmE4sDNr5Yqm', NULL, 1, 1, '2026-09-15 00:00:28', '2026-09-15 12:03:15', 5),
-(1107107107, 1, 'jennymartinez@sgturnos.com', 'Jenny', 'Andrea', 'Martinez', 'Heredia', '$2a$12$oTKO4fppna4dhn3PQEgWwuEwYsy5TxShmgJHQzGboGXxuEizHEKZi', NULL, 1, 1, '2026-09-15 00:00:29', '2026-09-15 12:03:17', 5),
-(1108108104, 2, 'mariabarajas@sgturnos.com', 'María', 'Camila', 'Barajas', 'López', '$2a$12$stN6Abs8aeKK8HAKnWCgXOya4HNOSbEIT4e4txw505YldYZzorFZO', NULL, 1, 1, '2026-09-15 00:00:29', '2026-09-15 12:03:17', 5),
-(1109109101, 3, 'armandosilva@sgturnos.com', 'Armando', 'Stiven', 'Silva', 'Rodríguez', '$2a$12$UueRt/DXQLAougwUGkBY2OKW1Amz5Ftcohj9prf8KBNmRKlomk0rG', NULL, 1, 1, '2026-09-15 00:00:30', '2026-09-15 12:03:18', 5),
-(1110101110, 4, 'monicapinilla@sgturnos.com', 'Mónica', 'Patricia', 'Pinilla', 'Castro', '$2a$12$RTVIZUK8QfdgyeTPS8uno.MDadVmygh/CjBA0oYrfJEdtXz9N7Qjy', NULL, 1, 1, '2026-09-15 00:00:30', '2026-09-15 12:03:20', 5),
-(1110110111, 5, 'camilavergara@sgturnos.com', 'Camila', 'Andrea', 'Vergara', 'Caro', '$2a$12$VZL8je/Z4SQeItTifLI1EeDS4/HNlbibwtH2qIc4O5r0QeGD34dpe', NULL, 1, 1, '2026-09-15 00:00:31', '2026-09-15 12:03:20', 5),
-(1110110112, 6, 'andrescastro@sgturnos.com', 'Andrés', 'Felipe', 'Castro', 'Polo', '$2a$12$RBKSYUN7wKmO36zs4Gj8RO3Xf0yGe/oyhAgwIq8vRytvXUpLAgOTK', NULL, 1, 1, '2026-09-15 00:00:31', '2026-09-15 12:03:21', 5),
-(1110110113, 7, 'juliaaraujo@sgturnos.com', 'Julia', 'Fernanda', 'Araujo', 'Henao', '$2a$12$hHqbf412TzewJawtus/L4.M4oHnfwN2XMYgmMO0WYImIAKyfacY5i', NULL, 1, 1, '2026-09-15 00:00:32', '2026-09-15 12:03:23', 5),
-(1110110114, 8, 'juanalopez@sgturnos.com', 'Juana', 'Carolina', 'López', 'Montes', '$2a$12$HI7QhxgFjdGRaHN1HHIgbefLtyQFDpvw6Bw7Jpzxz.PJJ4UXrifZC', NULL, 1, 1, '2026-09-15 00:00:32', '2026-09-15 12:03:23', 5),
-(1110110115, 1, 'danielacarvajal@sgturnos.com', 'Daniela', 'Carolina', 'Carvajal', 'Rio', '$2a$12$jrm4pRbzSVLvlQI3GWHmVeHs8lWdTqWpDTgNokZLi1LofyM3MoWRy', NULL, 1, 1, '2026-09-15 00:00:32', '2026-09-15 12:03:24', 5),
-(1110110116, 2, 'veronicacantor@sgturnos.com', 'Verónica', 'Sofia', 'Cantor', 'Jiménez', '$2a$12$.rx5NxmHBE/r.zWMfFxY4ua6o3igHFXkenoZ/RGEJlLErmZ2TBC6.', NULL, 1, 1, '2026-09-15 00:00:33', '2026-09-15 12:03:24', 5),
-(1110110117, 3, 'carlamunoz@sgturnos.com', 'Carla', 'Antonia', 'Muñoz', 'Álvarez', '$2a$12$umcBwsYiwvbWt19NQ68tWecODYICWsJkbO.ShfxdZ11Yga308bXOO', NULL, 1, 1, '2026-09-15 00:00:33', '2026-09-15 12:03:25', 5),
-(1110110118, 4, 'patriciapaternina@sgturnos.com', 'Patricia', NULL, 'Paternina', NULL, '$2a$12$n7n9nr7by81smb1mfMRLfeGd4pjm3wZ8eTnUR15x19tAlWxNfJx5q', NULL, 1, 1, '2026-09-15 00:00:34', '2026-09-15 12:03:26', 5),
-(1110110142, 5, 'yajairarangel@sgturnos.com', 'Yajaira', 'Paola', 'Rangel', 'Roa', '$2a$12$XhagGbcQ2Ta9fSrGd/sYYOHMnsy3TrRkqU2YJuw7na1O7ALZS0FO2', NULL, 1, 1, '2026-09-15 00:00:34', '2026-09-15 12:03:27', 5),
-(1434389742, 6, 'aioriadeleo@sgturnos.com', 'Aioria', 'De', 'Leo', 'Kido', '$2a$12$gnHXeTRjyWjMgJSNTjyRfeLjhW8RbUvK.bKuh/KWvkkAJR0ZrBRnS', NULL, 1, 1, '2026-09-15 00:00:35', '2026-09-15 12:03:27', 5),
-(6546341122, 7, 'conicamelo@sgturnos.com', 'Coni', 'Luz', 'Camelo', 'Frias', '$2a$12$xBP5A2PeEGw3sBJpj0f02.qgnm7T6l6nSIM3h5gIsgQjJXLMdnjhu', NULL, 1, 1, '2026-09-15 00:00:35', '2026-09-15 12:03:28', 5),
-(9686711199, 8, 'mirandafula@sgturnos.com', 'Miranda', 'Catrina', 'Fula', 'Cortez', '$2a$12$3umu5fJ/AOb1JxGcGIjMGO.lhhZY5CMGvayk.ztGM9utqoIgT8gES', NULL, 1, 1, '2026-09-15 00:00:36', '2026-09-15 12:03:29', 5),
-(123123456321, 1, 'sagageminis@sgturnos.com', 'Saga', 'De', 'Geminis', 'Kido', '$2a$12$xookV9Bgu0S2rp9VfNyqMe4GHCkiH9dHj/R9/KfOTN1KokaC4tt6a', NULL, 1, 1, '2026-09-15 00:00:36', '2026-09-15 12:03:29', 5);
+INSERT INTO `usuarios` (`id`, `empresa_id`, `documento`, `correo`, `primer_nombre`, `segundo_nombre`, `primer_apellido`, `segundo_apellido`, `contrasena`, `telefono`, `activo`, `esta_activo`, `creado_en`, `actualizado_en`, `id_rol`) VALUES
+(11122, 1, '1022334455', 'veronicalara@sgturnos.com', 'Veronica', 'Luciana', 'Lara', 'Carranza', '$2a$12$NKJesdn2mmCLr8jR6ZaoNuKDcK1vAHqAcN2I7e/hRl4lMM8oYh7dW', NULL, 1, 1, '2026-09-15 00:00:07', '2026-09-18 20:39:49', 2),
+(10203040, 2, '1023445566', 'rosajimenez@sgturnos.com', 'Rosa', 'Magnolia', 'Jimenez', 'Tafur', '$2a$12$0eBi7KhzCDAphEcIoH0bT.86L1t48lO0WDWueapKQ3nu328ljttHG', NULL, 1, 1, '2026-09-15 00:00:08', '2026-09-18 20:39:49', 2),
+(10293847, 3, '1024556677', 'oscarcampos@sgturnos.com', 'Oscar', 'Santiago', 'Campos', 'Ovalle', '$2a$12$dFwLrgrckIAQf3L3OsY12O9u0Tjephmz7h5kDciDNr4c61GfXoZL6', NULL, 1, 1, '2026-09-15 00:00:08', '2026-09-18 20:39:49', 2),
+(10439581, 4, '1025667788', 'beatrizmendoza@sgturnos.com', 'Beatriz', 'Ana', 'Mendoza', 'Trump', '$2a$12$67jPgk80hS4fzRFVzYGwTOoQ7c3sE90fbx4xE5Tige2E1KiCiCoHO', NULL, 1, 1, '2026-09-15 00:00:09', '2026-09-18 20:39:49', 2),
+(12233445, 5, '1026778899', 'victorguerrero@sgturnos.com', 'Victor', 'Pablo', 'Guerrero', 'Libano', '$2a$12$ejQC7rQC3Q.LS0cWYhqsGejPsOIoU4SnWU/jL.C2ouI56ymZXUOKq', NULL, 1, 1, '2026-09-15 00:00:09', '2026-09-18 20:39:49', 2),
+(13579246, 6, '1027889900', 'pedrosanchez@sgturnos.com', 'Pedro', 'Camilo', 'Sanchez', 'Tolosa', '$2a$12$Wnw7c6WyiJ67/j1MPvHleOGUSIIokcAq98L98n.7YWc4EtJNRJTDq', NULL, 1, 1, '2026-09-15 00:00:10', '2026-09-18 20:39:49', 2),
+(14142135, 7, '1028990011', 'isabelmunoz@sgturnos.com', 'Isabel', 'Alejandra', 'Muñoz', 'Aguilar', '$2a$12$eluTSsqVh7vNsKHzB8gxXOcJ6PdkLKgK4b2AqUR5AHi2CSKXLQVDm', NULL, 1, 1, '2026-09-15 00:00:10', '2026-09-18 20:39:49', 2),
+(16180339, 8, '1029001122', 'miguelruiz@sgturnos.com', 'Miguel', 'Camilo', 'Ruiz', 'Treller', '$2a$12$6ReIcMtXMM.zerDzeoXvjOdjSy.CV7cBSLGVDVF50HH01kIF5T2Ku', NULL, 1, 1, '2026-09-15 00:00:10', '2026-09-18 20:39:49', 2),
+(20304050, 1, '1030112233', 'fernandoluna@sgturnos.com', 'Fernando', 'Luis', 'Luna', 'Rayo', '$2a$12$3x.jIXjnYQMVqGWacONNWulHO8w9OhCoJ4bc96S6DbcA6qFAsMThy', NULL, 1, 1, '2026-09-15 00:00:11', '2026-09-18 20:39:49', 4),
+(24681357, 2, '1031223344', 'lauraramirez@sgturnos.com', 'Laura', 'Andrea', 'Ramirez', 'Valles', '$2a$12$CdpjaksSNDybzV2FRT/E8.FpqUYV/KDOmMLFl5x1qsREOyoTnDxEa', NULL, 1, 1, '2026-09-15 00:00:12', '2026-09-18 20:39:49', 4),
+(27182818, 3, '1032334455', 'elenavargas@sgturnos.com', 'Elena', 'Sofia', 'Vargas', 'Brush', '$2a$12$EsGIctWgqrTmyIMZJyLChOldBRxyHTGiXZCiSjFBZgR9PwFtbxrAC', NULL, 1, 1, '2026-09-15 00:00:12', '2026-09-18 20:39:49', 4),
+(29979245, 4, '1033445566', 'patricianavarro@sgturnos.com', 'Patricia', 'Nenitza', 'Navarro', 'Palma', '$2a$12$WIP5nrIzWfME1ljKAOwjE.YBlu/Xwjm5HJIzzoHeEvye9T2Z1VLl.', NULL, 1, 1, '2026-09-15 00:00:13', '2026-09-18 20:39:49', 4),
+(30405060, 5, '1034556677', 'eduardosoto@sgturnos.com', 'Eduardo', 'Felipe', 'Soto', 'Cardozo', '$2a$12$ps.Mv07N65gs8jWMrQMAt.ME2E1dFtv/8mHFU2ZtwEvwxKRBlV2ii', NULL, 1, 1, '2026-09-15 00:00:13', '2026-09-18 20:39:49', 4),
+(31415926, 6, '1035667788', 'diegotorres@sgturnos.com', 'Diego', 'David', 'Torres', 'Gomez', '$2a$12$oQBCa0M9.vgj3kv210k2g.ov1I65XQP4AuKotzFsZz0bS/17ZZDr.', NULL, 1, 1, '2026-09-15 00:00:13', '2026-09-18 20:39:49', 4),
+(40506070, 7, '1036778899', 'albertocruz@sgturnos.com', 'Alberto', 'Emiro', 'Cruz', 'Hunt', '$2a$12$U.wagz1PBEN9ZyrJB/vyHuEmnXWfs2s3raOj5rAUbHSGTAxcqNwtK', NULL, 1, 1, '2026-09-15 00:00:14', '2026-09-18 20:39:49', 4),
+(44455566, 8, '1037889900', 'paulamolina@sgturnos.com', 'Paula', 'Gabriela', 'Molina', 'Terrence', '$2a$12$oJyIp234zvp9/mW2TI0uhO3M1o5qRxifyavzju/OVgpOcArDJk7La', NULL, 1, 1, '2026-09-15 00:00:14', '2026-09-18 20:39:49', 4),
+(48273377, 1, '1038990011', 'dantegebel@sgturnos.com', 'Dante', 'jose', 'Gebel', 'Urrutia', '$2a$12$O3h3thfvnLyvGn0pYEafPeMWcY.A7P3pBe.wOeCoiIa2xBtskYqCe', NULL, 1, 1, '2026-09-15 00:00:15', '2026-09-18 20:39:49', 3),
+(50288419, 2, '1039001122', 'teresacastro@sgturnos.com', 'Teresa', 'Maria', 'Castro', 'Lopez', '$2a$12$Xd4GisLa5Eq3CmsX92C/IeYeDI/VM6DUhBozfjiXa4s5cHGYWNq2m', NULL, 1, 1, '2026-09-15 00:00:15', '2026-09-18 20:39:49', 3),
+(55667788, 3, '1040112233', 'olgaespinoza@sgturnos.com', 'Olga', 'Shakira', 'Espinoza', 'Castrol', '$2a$12$Ti35e4LCsTnWVDoFEuWbNO2sztasU7iI4G/B8mnW8lokcP5Bmu6Be', NULL, 1, 1, '2026-09-15 00:00:16', '2026-09-18 20:39:49', 3),
+(56473829, 4, '1041223344', 'luciavaldez@sgturnos.com', 'Lucia', 'Daniela', 'Valdez', 'Florez', '$2a$12$97f5NlS7/XcTnp2PROtU6e23NMT4qfYkqmm7YOWVAAsXRhZPL1hvq', NULL, 1, 1, '2026-09-15 00:00:16', '2026-09-18 20:39:49', 3),
+(57721566, 5, '1042334455', 'javiermoreno@sgturnos.com', 'Javier', 'Francisco', 'Moreno', 'Daza', '$2a$12$ITAVKBLePr.eIdYHZUAQhuFb8FYp2K/BVT1dGXmupaqIXcYIZz34m', NULL, 1, 1, '2026-09-15 00:00:17', '2026-09-18 20:39:49', 3),
+(60708090, 6, '1043445566', 'monicaparedes@sgturnos.com', 'Monica', 'Lucia', 'Paredes', 'Camargo', '$2a$12$dr5NAJzNQOHfiIJsqRCBnOm/VwjxHHOdF4zdGMHiubWjhPVUVyuQ6', NULL, 1, 1, '2026-09-15 00:00:17', '2026-09-18 20:39:49', 3),
+(66677788, 7, '1044556677', 'claudiaquintana@sgturnos.com', 'Claudia', 'Marcela', 'Quintana', 'Fajardo', '$2a$12$0.SntBBwx2Wfix2m2NPMrutaKIPmVsokFtyYQjf3m1pJcUNeSNgr.', NULL, 1, 1, '2026-09-15 00:00:17', '2026-09-18 20:39:49', 3),
+(66778899, 8, '1045667788', 'sofiahernandez@sgturnos.com', 'Sofia', '', 'Hernandez', NULL, '$2a$12$i/kIcOGPrTwF.S1EqXd13eAwSN3wCmGTEOkBTsPWmRYm7E1jNE8gG', NULL, 1, 1, '2026-09-15 00:00:18', '2026-09-18 20:39:49', 3),
+(69314718, 1, '1046778899', 'franciscoromero@sgturnos.com', 'Francisco', 'Javier', 'Romero', 'Caldas', '$2a$12$lvRAA3KBDd5dc6Y5lHCAWezJJHvpwxlqYz5iRt9iAYdVe89x.uv7a', NULL, 1, 1, '2026-09-15 00:00:18', '2026-09-18 20:39:49', 5),
+(70809010, 2, '1047889900', 'gabrielavega@sgturnos.com', 'Gabriela', 'Filipa', 'Vega', 'Alarcon', '$2a$12$P26jtxt.kIWaGN7pZnV4MON4v60YzaS0AJst4R6WA4WHNqd2vEh5u', NULL, 1, 1, '2026-09-15 00:00:19', '2026-09-18 20:39:49', 5),
+(71828182, 3, '1048990011', 'carmendiaz@sgturnos.com', 'Carmen', 'Isabelina', 'Diaz', 'Capera', '$2a$12$/g./CD/lQ5B02ZmwratHE.DUCR90DshbfzwvR.ZKjekh4pSMqLx3K', NULL, 1, 1, '2026-09-15 00:00:19', '2026-09-18 20:39:49', 5),
+(73205080, 4, '1049001122', 'antonioortega@sgturnos.com', 'Antonio', 'Jose', 'Ortega', 'Finch', '$2a$12$WrX0aGU9Us0mgJBPk7i9KOOPi2iSJ2xBZK3qgT2ZUSqJgQZRd1JJ2', NULL, 1, 1, '2026-09-15 00:00:20', '2026-09-18 20:39:49', 5),
+(77788899, 5, '1050112233', 'ricardopena@sgturnos.com', 'Ricardo', 'Hasam', 'Peña', 'Gareca', '$2a$12$SaxsS6QcGvIHCKuMhxGiquEB6B3RsxqeFFG7zSD17daTxrPd43NB.', NULL, 1, 1, '2026-09-15 00:00:20', '2026-09-18 20:39:49', 5),
+(80101476, 6, NULL, 'edissontaborda@sgturnos.com', 'Edisson', 'Andrés', 'Taborda', 'Reyes', '$2a$12$t.2hb75S2PO4KXTj8N2KzORQt8rUwc62z4jAMY9e6nrEqeygZM5.S', NULL, 1, 1, '2026-09-15 00:00:21', '2026-09-15 12:02:59', 1),
+(80901020, 7, '1051223344', 'silviarios@sgturnos.com', 'Silvia', 'Maria', 'Rios', 'Patarroyo', '$2a$12$5XDtzRy9YNGJ4RD.6qCJpuqicHuh11cVdxwxyqEUEtpQmx0vsKpD.', NULL, 1, 1, '2026-09-15 00:00:21', '2026-09-18 20:39:49', 5),
+(82012513, 8, '1052334455', 'nataliaflores@sgturnos.com', 'Natalia', 'Nikol', 'Flores', 'Catalan', '$2a$12$HttC3JV.YwO6Z/w6UJsQIOjqIjLIRSwz6e/82p8uMrg1po3MRsskW', NULL, 1, 1, '2026-09-15 00:00:21', '2026-09-18 20:39:49', 5),
+(83147098, 1, '1053445566', 'robertosilva@sgturnos.com', 'Roberto', 'Carlos', 'Silva', 'Clark', '$2a$12$Ec/A0sSOOPKgmbEqZa7xWeoHxDBFb7y.jbjUcoWrxkfztK85WU5WC', NULL, 1, 1, '2026-09-15 00:00:22', '2026-09-18 20:39:49', 5),
+(87654321, 2, '1054556677', 'marialopez@sgturnos.com', 'Maria', NULL, 'Lopez', NULL, '$2a$12$cQqplzP0s71MQamY2iEdJOxfcL57DAURQQLyZdEtj3vQYE59916fa', NULL, 1, 1, '2026-09-15 00:00:22', '2026-09-18 20:39:49', 5),
+(95462288, 3, '1055667788', 'susanaruiz@sgturnos.com', 'Susana', 'cintia', 'Ruiz', 'Cruz', '$2a$12$D5iytk.R9L6vsgxBjYPGleX6lRGvxEqZrHMUcECM7WWhLrQbTWdEO', NULL, 1, 1, '2026-09-15 00:00:23', '2026-09-18 20:39:49', 5),
+(95957217, 4, '1056778899', 'sergioreyes@sgturnos.com', 'Sergio', 'Andres', 'Reyes', 'Segura', '$2a$12$Z84LxXJigibCljZzYB3/GeFHM/fcE0/tLthOJI8LI6kMgANA6AGau', NULL, 1, 1, '2026-09-15 00:00:23', '2026-09-18 20:39:49', 5),
+(99001122, 5, '1057889900', 'raulmedina@sgturnos.com', 'Raul', 'Antonio', 'Medina', 'Gutierrez', '$2a$12$.7Iuk4T15b7OMNhYbUSkWu8kwwPENxUzflQbbQXavm3zbgYrRLzfG', NULL, 1, 1, '2026-09-15 00:00:24', '2026-09-18 20:39:49', 5),
+(99887766, 6, '1058990011', 'anagomez@sgturnos.com', 'Ana', 'Gomez', 'Gomez', NULL, '$2a$12$uU0KNDQuFfRvSkNtmjZZM.TUEPfpZnUP6kQrtP124bRD10Y4qncwm', NULL, 1, 1, '2026-09-15 00:00:24', '2026-09-18 20:39:49', 5),
+(99900011, 7, '1059001122', 'estebansalinas@sgturnos.com', 'Esteban', 'Pablo', 'Salinas', 'Morgan', '$2a$12$jVvL51Z3Gs7KBfzA1iu3BumCTOxgJyRr7IvJCrTsXYm4Ng2WuD5PC', NULL, 1, 1, '2026-09-15 00:00:25', '2026-09-18 20:39:49', 5),
+(123456123, 8, '1060112233', 'kenshinkido@sgturnos.com', 'Kenshin', 'Goku', 'Kido', 'Himura', '$2a$12$x3E5YTcLIKPnSDoRuDcMAu1VIquKk8v2FeiiJWavQKQDqDhtjIOGC', NULL, 1, 1, '2026-09-15 00:00:25', '2026-09-18 20:39:49', 5),
+(1090807123, 1, '1061223344', 'leonardodicaprio@sgturnos.com', 'Leonardo', 'Ramiro', 'Dicaprio', 'Sosavita', '$2a$12$eV0jZr0lEUJKeF.0s3HbqOMCtdXZ95XjBbCXMFvVMklT.UZG97he2', NULL, 1, 1, '2026-09-15 00:00:25', '2026-09-18 20:39:49', 5),
+(1101101101, 2, '1062334455', 'yuliydaza@sgturnos.com', 'Yuliy', 'Paola', 'Daza', 'Oviedo', '$2a$12$I5KZ8LPR.3brpXgclWmgR.KxjO49hbePI4WR7AGjAkx4TNpwJ3bRa', NULL, 1, 1, '2026-09-15 00:00:26', '2026-09-18 20:39:49', 5),
+(1101246975, 3, '1063445566', 'ramonjirafales@sgturnos.com', 'Ramon', 'Federico', 'Jirafales', 'Barriga', '$2a$12$Kn11crZ91HHPSk1V9N7NdeFqHaYyf/e0Puq7leeID0ilec3O4.Stm', NULL, 1, 1, '2026-09-15 00:00:26', '2026-09-18 20:39:49', 5),
+(1102102101, 4, '1064556677', 'melissasolano@sgturnos.com', 'Melissa', 'Andrea', 'Solano', 'Patiño', '$2a$12$gy/Zf/i9j3kuS3ClpMb9nuoqq62Mlmff.HwGH/fbq/ibJ4ksS6ZFy', NULL, 1, 1, '2026-09-15 00:00:27', '2026-09-18 20:39:49', 5),
+(1103103101, 5, '1065667788', 'angelicaprada@sgturnos.com', 'Angelica', 'Milena', 'Prada', 'Cañón', '$2a$12$j4kezMnhHL6A5HyuzRH9me5dVgQAtQkSRQ61qVlz.ixMLkqeB2HmG', NULL, 1, 1, '2026-09-15 00:00:27', '2026-09-18 20:39:49', 5),
+(1104104101, 6, '1066778899', 'jesusbeltran@sgturnos.com', 'Jesús', 'Daniel', 'Beltrán', 'Rodríguez', '$2a$12$sasqPIMXRLOIeqieG15ar.wFPRvOlUNwjTl0QMqsrj9/5QUgsQ9G.', NULL, 1, 1, '2026-09-15 00:00:28', '2026-09-18 20:39:49', 5),
+(1104774847, 7, '1067889900', 'leydigodoy@sgturnos.com', 'Leydi', 'Cecilia', 'Godoy', 'Ortiz', '$2a$12$kV8rHyebd9TL0884au/eO.optpcg8LIcr7aSnQrKpiYZ6GT.PlnRW', NULL, 1, 1, '2026-09-15 00:00:28', '2026-09-18 20:39:49', 1),
+(1105105104, 8, '1068990011', 'carlosrodriguez@sgturnos.com', 'Carlos', 'Andrés', 'Rodríguez', 'Ochoa', '$2a$12$zPInPqXFbWNvvVIVGNxNcOwkudbT4YNTIJLYjtCoVCmE4sDNr5Yqm', NULL, 1, 1, '2026-09-15 00:00:28', '2026-09-18 20:39:49', 5),
+(1107107107, 1, '1069001122', 'jennymartinez@sgturnos.com', 'Jenny', 'Andrea', 'Martinez', 'Heredia', '$2a$12$oTKO4fppna4dhn3PQEgWwuEwYsy5TxShmgJHQzGboGXxuEizHEKZi', NULL, 1, 1, '2026-09-15 00:00:29', '2026-09-18 20:39:49', 5),
+(1108108104, 2, '1070112233', 'mariabarajas@sgturnos.com', 'María', 'Camila', 'Barajas', 'López', '$2a$12$stN6Abs8aeKK8HAKnWCgXOya4HNOSbEIT4e4txw505YldYZzorFZO', NULL, 1, 1, '2026-09-15 00:00:29', '2026-09-18 20:39:49', 5),
+(1109109101, 3, '1071223344', 'armandosilva@sgturnos.com', 'Armando', 'Stiven', 'Silva', 'Rodríguez', '$2a$12$UueRt/DXQLAougwUGkBY2OKW1Amz5Ftcohj9prf8KBNmRKlomk0rG', NULL, 1, 1, '2026-09-15 00:00:30', '2026-09-18 20:39:49', 5),
+(1110101110, 4, '1072334455', 'monicapinilla@sgturnos.com', 'Mónica', 'Patricia', 'Pinilla', 'Castro', '$2a$12$RTVIZUK8QfdgyeTPS8uno.MDadVmygh/CjBA0oYrfJEdtXz9N7Qjy', NULL, 1, 1, '2026-09-15 00:00:30', '2026-09-18 20:39:49', 5),
+(1110110111, 5, '1073445566', 'camilavergara@sgturnos.com', 'Camila', 'Andrea', 'Vergara', 'Caro', '$2a$12$VZL8je/Z4SQeItTifLI1EeDS4/HNlbibwtH2qIc4O5r0QeGD34dpe', NULL, 1, 1, '2026-09-15 00:00:31', '2026-09-18 20:39:49', 5),
+(1110110112, 6, '1074556677', 'andrescastro@sgturnos.com', 'Andrés', 'Felipe', 'Castro', 'Polo', '$2a$12$RBKSYUN7wKmO36zs4Gj8RO3Xf0yGe/oyhAgwIq8vRytvXUpLAgOTK', NULL, 1, 1, '2026-09-15 00:00:31', '2026-09-18 20:39:49', 5),
+(1110110113, 7, '1075667788', 'juliaaraujo@sgturnos.com', 'Julia', 'Fernanda', 'Araujo', 'Henao', '$2a$12$hHqbf412TzewJawtus/L4.M4oHnfwN2XMYgmMO0WYImIAKyfacY5i', NULL, 1, 1, '2026-09-15 00:00:32', '2026-09-18 20:39:49', 5),
+(1110110114, 8, '1076778899', 'juanalopez@sgturnos.com', 'Juana', 'Carolina', 'López', 'Montes', '$2a$12$HI7QhxgFjdGRaHN1HHIgbefLtyQFDpvw6Bw7Jpzxz.PJJ4UXrifZC', NULL, 1, 1, '2026-09-15 00:00:32', '2026-09-18 20:39:49', 5),
+(1110110115, 1, '1077889900', 'danielacarvajal@sgturnos.com', 'Daniela', 'Carolina', 'Carvajal', 'Rio', '$2a$12$jrm4pRbzSVLvlQI3GWHmVeHs8lWdTqWpDTgNokZLi1LofyM3MoWRy', NULL, 1, 1, '2026-09-15 00:00:32', '2026-09-18 20:39:49', 5),
+(1110110116, 2, '1078990011', 'veronicacantor@sgturnos.com', 'Verónica', 'Sofia', 'Cantor', 'Jiménez', '$2a$12$.rx5NxmHBE/r.zWMfFxY4ua6o3igHFXkenoZ/RGEJlLErmZ2TBC6.', NULL, 1, 1, '2026-09-15 00:00:33', '2026-09-18 20:39:49', 5),
+(1110110117, 3, '1079001122', 'carlamunoz@sgturnos.com', 'Carla', 'Antonia', 'Muñoz', 'Álvarez', '$2a$12$umcBwsYiwvbWt19NQ68tWecODYICWsJkbO.ShfxdZ11Yga308bXOO', NULL, 1, 1, '2026-09-15 00:00:33', '2026-09-18 20:39:49', 5),
+(1110110118, 4, '1080112233', 'patriciapaternina@sgturnos.com', 'Patricia', NULL, 'Paternina', NULL, '$2a$12$n7n9nr7by81smb1mfMRLfeGd4pjm3wZ8eTnUR15x19tAlWxNfJx5q', NULL, 1, 1, '2026-09-15 00:00:34', '2026-09-18 20:39:49', 5),
+(1110110142, 5, '1081223344', 'yajairarangel@sgturnos.com', 'Yajaira', 'Paola', 'Rangel', 'Roa', '$2a$12$XhagGbcQ2Ta9fSrGd/sYYOHMnsy3TrRkqU2YJuw7na1O7ALZS0FO2', NULL, 1, 1, '2026-09-15 00:00:34', '2026-09-18 20:39:49', 5),
+(1434389742, 6, '1082334455', 'aioriadeleo@sgturnos.com', 'Aioria', 'De', 'Leo', 'Kido', '$2a$12$gnHXeTRjyWjMgJSNTjyRfeLjhW8RbUvK.bKuh/KWvkkAJR0ZrBRnS', NULL, 1, 1, '2026-09-15 00:00:35', '2026-09-18 20:39:49', 5),
+(6546341122, 7, '1083445566', 'conicamelo@sgturnos.com', 'Coni', 'Luz', 'Camelo', 'Frias', '$2a$12$xBP5A2PeEGw3sBJpj0f02.qgnm7T6l6nSIM3h5gIsgQjJXLMdnjhu', NULL, 1, 1, '2026-09-15 00:00:35', '2026-09-18 20:39:49', 5),
+(9686711199, 8, '1084556677', 'mirandafula@sgturnos.com', 'Miranda', 'Catrina', 'Fula', 'Cortez', '$2a$12$3umu5fJ/AOb1JxGcGIjMGO.lhhZY5CMGvayk.ztGM9utqoIgT8gES', NULL, 1, 1, '2026-09-15 00:00:36', '2026-09-18 20:39:49', 5),
+(123123456321, 1, '1085667788', 'sagageminis@sgturnos.com', 'Saga', 'De', 'Geminis', 'Kido', '$2a$12$xookV9Bgu0S2rp9VfNyqMe4GHCkiH9dHj/R9/KfOTN1KokaC4tt6a', NULL, 1, 1, '2026-09-15 00:00:36', '2026-09-18 20:39:49', 5),
+(123123456323, 9, '1234465468', 'talero@novatech.com', 'Nikol', 'Mariana', 'Talero', 'Paez', '$2a$12$rZrm.U55qNA.1tpQgq.nXeIELjzqtV5rMRCLBfkPkf5yodqhCpzgi', NULL, 1, 1, '2026-09-17 03:55:45', NULL, 5),
+(123123456324, 11, '167674545', 'cerati@italo.com', 'Gustavo', 'Andrés', 'Cerati', 'Suarez', '$2a$12$f0wEGuYRAs.FqTcl.3Hb3OrCkwSxHdCTctznxEYAXmxwwbgWmUNpe', NULL, 1, 1, '2026-09-17 04:52:06', NULL, 5);
 
 -- --------------------------------------------------------
 
@@ -612,7 +702,9 @@ INSERT INTO `usuario_roles` (`id`, `usuario_id`, `rol_id`, `alcance`, `creado_en
 (189, 1434389742, 5, 'global', '2026-09-15 04:15:03'),
 (190, 6546341122, 5, 'global', '2026-09-15 04:15:03'),
 (191, 9686711199, 5, 'global', '2026-09-15 04:15:03'),
-(192, 123123456321, 5, 'global', '2026-09-15 04:15:03');
+(192, 123123456321, 5, 'global', '2026-09-15 04:15:03'),
+(194, 123123456323, 5, 'empresa', '2026-09-17 03:55:45'),
+(195, 123123456324, 5, 'empresa', '2026-09-17 04:52:06');
 
 --
 -- Índices para tablas volcadas
@@ -635,6 +727,25 @@ ALTER TABLE `asignaciones_turno`
   ADD KEY `idx_asignaciones_instancia` (`instancia_turno_id`),
   ADD KEY `idx_asignaciones_empleado` (`empleado_id`),
   ADD KEY `fk_asignaciones_asignado_por` (`asignado_por`);
+
+--
+-- Indices de la tabla `configuraciones_malla`
+--
+ALTER TABLE `configuraciones_malla`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_config_nombre_empresa` (`empresa_id`,`nombre`),
+  ADD KEY `idx_configuraciones_empresa` (`empresa_id`),
+  ADD KEY `idx_configuraciones_activo` (`activo`),
+  ADD KEY `idx_config_empresa_activa` (`empresa_id`,`activo`);
+
+--
+-- Indices de la tabla `configuraciones_malla_turnos`
+--
+ALTER TABLE `configuraciones_malla_turnos`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_config_turno_unique` (`configuracion_id`,`plantilla_id`),
+  ADD KEY `idx_config_turno_configuracion` (`configuracion_id`),
+  ADD KEY `idx_config_turno_plantilla` (`plantilla_id`);
 
 --
 -- Indices de la tabla `disponibilidad`
@@ -706,7 +817,8 @@ ALTER TABLE `planes`
 --
 ALTER TABLE `plantillas_turno`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_plantillas_empresa` (`empresa_id`);
+  ADD KEY `idx_plantillas_empresa` (`empresa_id`),
+  ADD KEY `idx_personalizada` (`es_personalizada`);
 
 --
 -- Indices de la tabla `registros_auditoria`
@@ -738,6 +850,17 @@ ALTER TABLE `solicitudes_novedad`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_solicitudes_empleado` (`empleado_id`),
   ADD KEY `idx_solicitudes_empresa` (`empresa_id`);
+
+--
+-- Indices de la tabla `tokens_restablecimiento_contraseña`
+--
+ALTER TABLE `tokens_restablecimiento_contraseña`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `hash_token` (`hash_token`),
+  ADD KEY `idx_hash_token` (`hash_token`),
+  ADD KEY `idx_expira_en` (`expira_en`),
+  ADD KEY `idx_usuario_id` (`usuario_id`),
+  ADD KEY `idx_usuario_id_legado` (`usuario_id_legado`);
 
 --
 -- Indices de la tabla `usuarios`
@@ -774,6 +897,18 @@ ALTER TABLE `asignaciones_turno`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `configuraciones_malla`
+--
+ALTER TABLE `configuraciones_malla`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `configuraciones_malla_turnos`
+--
+ALTER TABLE `configuraciones_malla_turnos`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `disponibilidad`
 --
 ALTER TABLE `disponibilidad`
@@ -795,7 +930,7 @@ ALTER TABLE `empleados`
 -- AUTO_INCREMENT de la tabla `empresas`
 --
 ALTER TABLE `empresas`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT de la tabla `especialidades`
@@ -825,13 +960,13 @@ ALTER TABLE `planes`
 -- AUTO_INCREMENT de la tabla `plantillas_turno`
 --
 ALTER TABLE `plantillas_turno`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT de la tabla `registros_auditoria`
 --
 ALTER TABLE `registros_auditoria`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT de la tabla `roles`
@@ -852,16 +987,22 @@ ALTER TABLE `solicitudes_novedad`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `tokens_restablecimiento_contraseña`
+--
+ALTER TABLE `tokens_restablecimiento_contraseña`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=123123456322;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=123123456325;
 
 --
 -- AUTO_INCREMENT de la tabla `usuario_roles`
 --
 ALTER TABLE `usuario_roles`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=193;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=196;
 
 --
 -- Restricciones para tablas volcadas
@@ -881,6 +1022,19 @@ ALTER TABLE `asignaciones_turno`
   ADD CONSTRAINT `fk_asignaciones_asignado_por` FOREIGN KEY (`asignado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_asignaciones_empleado` FOREIGN KEY (`empleado_id`) REFERENCES `empleados` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_asignaciones_instancia` FOREIGN KEY (`instancia_turno_id`) REFERENCES `instancias_turno` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `configuraciones_malla`
+--
+ALTER TABLE `configuraciones_malla`
+  ADD CONSTRAINT `configuraciones_malla_ibfk_1` FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `configuraciones_malla_turnos`
+--
+ALTER TABLE `configuraciones_malla_turnos`
+  ADD CONSTRAINT `configuraciones_malla_turnos_ibfk_1` FOREIGN KEY (`configuracion_id`) REFERENCES `configuraciones_malla` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `configuraciones_malla_turnos_ibfk_2` FOREIGN KEY (`plantilla_id`) REFERENCES `plantillas_turno` (`id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `disponibilidad`
