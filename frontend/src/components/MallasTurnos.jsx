@@ -7,9 +7,11 @@ export default function MallasTurnos() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [showGenerador, setShowGenerador] = useState(false)
+  const [showAsignacion, setShowAsignacion] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [generando, setGenerando] = useState(false)
+  const [asignando, setAsignando] = useState(false)
   
   const [form, setForm] = useState({
     nombre: '',
@@ -24,6 +26,14 @@ export default function MallasTurnos() {
     cantidad_semanas: 4,
     tipo_distribucion: 'equilibrada',
     pautas_seleccionadas: [],
+  })
+
+  const [asignacionForm, setAsignacionForm] = useState({
+    malla_id: '',
+    considerarEspecialidades: true,
+    respetarDisponibilidades: true,
+    equilibrarCarga: true,
+    empleadosExcluir: '',
   })
 
   const token = localStorage.getItem('token')
@@ -165,6 +175,65 @@ export default function MallasTurnos() {
     setTimeout(() => setSuccess(''), 3000)
   }
 
+  async function handleAsignarAutomaticamente(e) {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    if (!asignacionForm.malla_id) {
+      setError('Selecciona una malla para asignar empleados')
+      return
+    }
+
+    try {
+      setAsignando(true)
+      const response = await fetch('http://localhost:3001/api/planificador/asignar-automaticamente', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          empresa_id: Number(empresaId),
+          malla_id: Number(asignacionForm.malla_id),
+          criterios: {
+            considerarEspecialidades: asignacionForm.considerarEspecialidades,
+            respetarDisponibilidades: asignacionForm.respetarDisponibilidades,
+            equilibrarCarga: asignacionForm.equilibrarCarga,
+            empleadosExcluir: asignacionForm.empleadosExcluir
+              ? asignacionForm.empleadosExcluir.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+              : [],
+            empleadosIncluir: null
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al asignar empleados')
+      }
+
+      const data = await response.json()
+      setSuccess(`Asignacion completada: ${data.asignacionesRealizadas} empleados asignados (${data.porcentajeCobertura} cobertura)`)
+      setShowAsignacion(false)
+      setAsignacionForm({
+        malla_id: '',
+        considerarEspecialidades: true,
+        respetarDisponibilidades: true,
+        equilibrarCarga: true,
+        empleadosExcluir: '',
+      })
+      
+      await loadMallas()
+      setTimeout(() => setSuccess(''), 8000)
+    } catch (err) {
+      console.error('Error asignando empleados:', err)
+      setError('Error: ' + err.message)
+    } finally {
+      setAsignando(false)
+    }
+  }
+
   return (
     <section className="panel mallas-panel">
       <div className="panel-heading">
@@ -178,16 +247,29 @@ export default function MallasTurnos() {
             onClick={() => {
               setShowGenerador(!showGenerador)
               setShowForm(false)
+              setShowAsignacion(false)
             }}
             title="Generar malla automáticamente usando configuraciones"
           >
             {showGenerador ? 'Cancelar' : '⚙️ Generar Automático'}
           </button>
           <button
+            className={`button-primary ${showAsignacion ? 'active' : ''}`}
+            onClick={() => {
+              setShowAsignacion(!showAsignacion)
+              setShowForm(false)
+              setShowGenerador(false)
+            }}
+            title="Asignar empleados automáticamente"
+          >
+            {showAsignacion ? 'Cancelar' : '👥 Asignar Empleados'}
+          </button>
+          <button
             className={`button-secondary ${showForm ? 'active' : ''}`}
             onClick={() => {
               setShowForm(!showForm)
               setShowGenerador(false)
+              setShowAsignacion(false)
               setForm({ nombre: '', fecha_inicio: '', fecha_fin: '', descripcion: '' })
             }}
           >
@@ -281,6 +363,120 @@ export default function MallasTurnos() {
                     cantidad_semanas: 4,
                     tipo_distribucion: 'equilibrada',
                     pautas_seleccionadas: [],
+                  })
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* FORMULARIO DE ASIGNACION AUTOMATICA */}
+      {showAsignacion && (
+        <div className="asignacion-form-container">
+          <form className="asignacion-form" onSubmit={handleAsignarAutomaticamente}>
+            <h3>Asignar Empleados Automáticamente</h3>
+            
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="malla">Malla de Turnos *</label>
+                <select
+                  id="malla"
+                  required
+                  value={asignacionForm.malla_id}
+                  onChange={(e) => setAsignacionForm({ ...asignacionForm, malla_id: e.target.value })}
+                >
+                  <option value="">-- Selecciona una malla --</option>
+                  {mallas.map((malla) => (
+                    <option key={malla.id} value={malla.id}>
+                      {malla.nombre} ({malla.total_instancias || 0} turnos)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-section">
+              <h4>Criterios de Asignacion</h4>
+              
+              <div className="form-row">
+                <div className="form-group checkbox-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={asignacionForm.considerarEspecialidades}
+                      onChange={(e) => setAsignacionForm({ ...asignacionForm, considerarEspecialidades: e.target.checked })}
+                    />
+                    Considerar especialidades requeridas
+                  </label>
+                  <p className="help-text">Solo asignar empleados con la especialidad correcta</p>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group checkbox-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={asignacionForm.respetarDisponibilidades}
+                      onChange={(e) => setAsignacionForm({ ...asignacionForm, respetarDisponibilidades: e.target.checked })}
+                    />
+                    Respetar disponibilidades de empleados
+                  </label>
+                  <p className="help-text">Solo asignar turnos en horarios disponibles</p>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group checkbox-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={asignacionForm.equilibrarCarga}
+                      onChange={(e) => setAsignacionForm({ ...asignacionForm, equilibrarCarga: e.target.checked })}
+                    />
+                    Equilibrar carga de trabajo
+                  </label>
+                  <p className="help-text">Distribuir turnos equitativamente entre empleados</p>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="excluir">Empleados a Excluir (opcional)</label>
+                  <input
+                    id="excluir"
+                    type="text"
+                    placeholder="IDs separados por comas: 1, 2, 3"
+                    value={asignacionForm.empleadosExcluir}
+                    onChange={(e) => setAsignacionForm({ ...asignacionForm, empleadosExcluir: e.target.value })}
+                  />
+                  <p className="help-text">Ingresa los IDs de empleados que no deseas asignar</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="form-actions">
+              <button
+                className="button-primary" 
+                type="submit"
+                disabled={asignando}
+              >
+                {asignando ? '⏳ Asignando...' : '👥 Asignar Empleados'}
+              </button>
+              <button
+                className="button-secondary"
+                type="button"
+                onClick={() => {
+                  setShowAsignacion(false)
+                  setAsignacionForm({
+                    malla_id: '',
+                    considerarEspecialidades: true,
+                    respetarDisponibilidades: true,
+                    equilibrarCarga: true,
+                    empleadosExcluir: '',
                   })
                 }}
               >

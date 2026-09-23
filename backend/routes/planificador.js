@@ -3,6 +3,7 @@ const router = express.Router();
 const { pool } = require('../db');
 const { authenticateToken } = require('../auth');
 const generadorMallas = require('../services/generadorMallas');
+const generadorAsignaciones = require('../services/generadorAsignaciones');
 
 /**
  * ==========================================
@@ -509,6 +510,283 @@ router.get('/cobertura', authenticateToken, async (req, res) => {
     console.error('Error obteniendo cobertura:', error);
     return res.status(500).json({
       error: 'Error al obtener cobertura'
+    });
+  }
+});
+
+// ENDPOINT 6: Asignar automaticamente empleados a turnos
+router.post('/asignar-automaticamente', authenticateToken, async (req, res) => {
+  try {
+    const { empresa_id, malla_id, criterios = {} } = req.body;
+    const userId = req.auth.Id_usuario;
+    const userRole = req.auth.Id_rol;
+    const userCompany = req.auth.empresa_id;
+
+    if (!isPlanificador(userRole)) {
+      return res.status(403).json({
+        error: 'Acceso denegado: solo Planificadores o superiores pueden asignar turnos'
+      });
+    }
+
+    if (!checkCompanyAccess(userRole, userCompany, empresa_id)) {
+      return res.status(403).json({
+        error: 'No tiene acceso a esta empresa'
+      });
+    }
+
+    if (!empresa_id || !malla_id) {
+      return res.status(400).json({
+        error: 'Parametros requeridos: empresa_id, malla_id'
+      });
+    }
+
+    const resultado = await generadorAsignaciones.asignarAutomaticamente({
+      mallaId: malla_id,
+      empresaId: empresa_id,
+      usuarioId: userId,
+      criterios
+    });
+
+    await logAction(
+      empresa_id,
+      userId,
+      'ASIGNACION_AUTOMATICA',
+      'mallas_turnos',
+      malla_id,
+      {
+        asignaciones_realizadas: resultado.asignacionesRealizadas,
+        turnos_sin_asignar: resultado.turnosSinAsignar,
+        criterios_utilizados: criterios
+      }
+    );
+
+    return res.json({
+      exito: true,
+      asignacionesRealizadas: resultado.asignacionesRealizadas,
+      turnosSinAsignar: resultado.turnosSinAsignar,
+      porcentajeCobertura: resultado.resumen?.porcentajeCobertura || '0%',
+      detalles: resultado.detalles,
+      advertencias: resultado.advertencias,
+      resumen: resultado.resumen
+    });
+
+  } catch (error) {
+    console.error('Error en asignacion automatica:', error);
+    return res.status(500).json({
+      error: 'Error al asignar automaticamente',
+      mensaje: error.message
+    });
+  }
+});
+
+// ENDPOINT 7: Obtener empleados elegibles para un turno
+router.get('/empleados-elegibles/:instancia_id', authenticateToken, async (req, res) => {
+  try {
+    const { instancia_id } = req.params;
+    const { considerarEspecialidades = true, empleadosExcluir = '' } = req.query;
+    const empresa_id = req.auth.empresa_id;
+    const userRole = req.auth.Id_rol;
+
+    if (!isPlanificador(userRole)) {
+      return res.status(403).json({
+        error: 'Acceso denegado'
+      });
+    }
+
+    const idsExcluir = empleadosExcluir
+      ? empleadosExcluir.split(',').map(id => parseInt(id)).filter(id => !isNaN(id))
+      : [];
+
+    const empleados = await generadorAsignaciones.obtenerEmpleadosElegibles({
+      instanciaId: parseInt(instancia_id),
+      empresaId: empresa_id,
+      empleadosExcluir: idsExcluir,
+      considerarEspecialidades: considerarEspecialidades === 'true'
+    });
+
+    return res.json({
+      empleados
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo empleados elegibles:', error);
+    return res.status(500).json({
+      error: 'Error al obtener empleados elegibles',
+      mensaje: error.message
+    });
+  }
+});
+
+// ENDPOINT 8: Asignar empleado especifico a turno manual
+router.post('/asignar-empleado-manual', authenticateToken, async (req, res) => {
+  try {
+    const { empresa_id, instancia_turno_id, empleado_id, notas = '' } = req.body;
+    const userId = req.auth.Id_usuario;
+    const userRole = req.auth.Id_rol;
+    const userCompany = req.auth.empresa_id;
+
+    if (!isPlanificador(userRole)) {
+      return res.status(403).json({
+        error: 'Acceso denegado: solo Planificadores o superiores'
+      });
+    }
+
+    if (!checkCompanyAccess(userRole, userCompany, empresa_id)) {
+      return res.status(403).json({
+        error: 'No tiene acceso a esta empresa'
+      });
+    }
+
+    if (!instancia_turno_id || !empleado_id) {
+      return res.status(400).json({
+        error: 'Parametros requeridos: instancia_turno_id, empleado_id'
+      });
+    }
+
+    const [instancias] = await pool.query(
+      `SELECT it.id FROM instancias_turno it
+       JOIN plantillas_turno pt ON it.plantilla_id = pt.id
+       WHERE it.id = ? AND pt.empresa_id = ?`,
+      [instancia_turno_id, empresa_id]
+    );
+
+    if (instancias.length === 0) {
+      return res.status(404).json({
+        error: 'Instancia de turno no encontrada'
+      });
+    }
+
+    const [empleados] = await pool.query(
+      `SELECT id FROM empleados WHERE id = ? AND empresa_id = ?`,
+      [empleado_id, empresa_id]
+    );
+
+    if (empleados.length === 0) {
+      return res.status(404).json({
+        error: 'Empleado no encontrado'
+      });
+    }
+
+    const [asignacionesExistentes] = await pool.query(
+      `SELECT id FROM asignaciones_turno 
+       WHERE instancia_turno_id = ? AND empleado_id = ?`,
+      [instancia_turno_id, empleado_id]
+    );
+
+    if (asignacionesExistentes.length > 0) {
+      return res.status(409).json({
+        error: 'El empleado ya esta asignado a este turno'
+      });
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO asignaciones_turno 
+       (instancia_turno_id, empleado_id, asignado_por, estado, asignado_en)
+       VALUES (?, ?, ?, 'confirmado', NOW())`,
+      [instancia_turno_id, empleado_id, userId]
+    );
+
+    await logAction(
+      empresa_id,
+      userId,
+      'ASIGNACION_MANUAL_EMPLEADO',
+      'asignaciones_turno',
+      result.insertId,
+      {
+        instancia_turno_id,
+        empleado_id,
+        notas
+      }
+    );
+
+    return res.json({
+      exito: true,
+      asignacion_id: result.insertId,
+      mensaje: 'Empleado asignado correctamente al turno'
+    });
+
+  } catch (error) {
+    console.error('Error en asignacion manual:', error);
+    return res.status(500).json({
+      error: 'Error al asignar empleado',
+      mensaje: error.message
+    });
+  }
+});
+
+// ENDPOINT 9: Obtener resumen de asignaciones por empleado
+router.get('/resumen-asignaciones-empleado/:empleado_id', authenticateToken, async (req, res) => {
+  try {
+    const { empleado_id } = req.params;
+    const {
+      fecha_inicio = new Date().toISOString().split('T')[0],
+      fecha_fin = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    } = req.query;
+    const empresa_id = req.auth.empresa_id;
+    const userRole = req.auth.Id_rol;
+
+    if (!isPlanificador(userRole)) {
+      return res.status(403).json({
+        error: 'Acceso denegado'
+      });
+    }
+
+    const [empleados] = await pool.query(
+      `SELECT e.id, e.especialidad_id,
+              CONCAT_WS(' ', u.primer_nombre, u.primer_apellido) as nombre
+       FROM empleados e
+       LEFT JOIN usuarios u ON e.usuario_id = u.id
+       WHERE e.id = ? AND e.empresa_id = ?`,
+      [empleado_id, empresa_id]
+    );
+
+    if (empleados.length === 0) {
+      return res.status(404).json({
+        error: 'Empleado no encontrado'
+      });
+    }
+
+    const [asignaciones] = await pool.query(
+      `SELECT 
+         it.fecha,
+         TIME_FORMAT(it.inicio_timestamp, '%H:%i') as hora_inicio,
+         TIME_FORMAT(it.fin_timestamp, '%H:%i') as hora_fin,
+         pt.duracion_minutos,
+         at.estado,
+         pt.nombre as turno_nombre
+       FROM asignaciones_turno at
+       JOIN instancias_turno it ON at.instancia_turno_id = it.id
+       JOIN plantillas_turno pt ON it.plantilla_id = pt.id
+       WHERE at.empleado_id = ? 
+       AND it.fecha BETWEEN ? AND ?
+       ORDER BY it.fecha ASC`,
+      [empleado_id, fecha_inicio, fecha_fin]
+    );
+
+    const totalMinutos = asignaciones.reduce((sum, a) => sum + (a.duracion_minutos || 0), 0);
+    const totalAsignaciones = asignaciones.length;
+    const semanasDiferencia = Math.ceil((new Date(fecha_fin) - new Date(fecha_inicio)) / (7 * 24 * 60 * 60 * 1000)) || 1;
+
+    return res.json({
+      empleado: empleados[0],
+      asignaciones,
+      estadisticas: {
+        total_asignaciones: totalAsignaciones,
+        total_minutos: totalMinutos,
+        total_horas: (totalMinutos / 60).toFixed(2),
+        promedio_asignaciones_por_semana: (totalAsignaciones / semanasDiferencia).toFixed(2)
+      },
+      periodo: {
+        fecha_inicio,
+        fecha_fin
+      }
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo resumen:', error);
+    return res.status(500).json({
+      error: 'Error al obtener resumen de asignaciones',
+      mensaje: error.message
     });
   }
 });
