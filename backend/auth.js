@@ -20,7 +20,8 @@ function authenticateToken(req, res, next) {
   if (!token) return res.status(401).json({ error: 'token required' });
 
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+    req.auth = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+    req.user = req.auth; // mantener compatibilidad
     next();
   } catch {
     return res.status(401).json({ error: 'invalid token' });
@@ -74,7 +75,7 @@ async function findUser(correo) {
     const [rows] = await pool.query(
       `SELECT id AS Id_usuario,
               CONCAT_WS(' ', primer_nombre, segundo_nombre, primer_apellido, segundo_apellido) AS nombre,
-              correo, contrasena, Id_rol, empresa_id,
+              correo, contrasena, id_rol AS Id_rol, empresa_id,
               primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, activo,
               'usuarios' AS source
        FROM usuarios
@@ -221,7 +222,9 @@ router.post('/login', async (req, res) => {
     const ok = await bcrypt.compare(contrasena, user.contrasena);
     if (!ok) return res.status(401).json({ error: 'invalid credentials' });
 
-    const role = user.Id_rol || (user.correo.toLowerCase() === 'superadmin@sgturnos.com' ? 'super_admin' : 'user');
+    // role puede ser número (1-5) o string, asegurar conversión a string
+    const rawRole = user.Id_rol || (user.correo.toLowerCase() === 'superadmin@sgturnos.com' ? 'super_admin' : 'user');
+    const role = String(rawRole).trim().toLowerCase();
     const payload = { id: user.Id_usuario, role, empresa_id: user.empresa_id };
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'devsecret', { expiresIn: '8h' });
 
@@ -238,7 +241,7 @@ async function getUserById(id) {
     const [rows] = await pool.query(
       `SELECT id AS Id_usuario,
               CONCAT_WS(' ', primer_nombre, segundo_nombre, primer_apellido, segundo_apellido) AS nombre,
-              correo, contrasena, Id_rol, empresa_id,
+              correo, contrasena, id_rol AS Id_rol, empresa_id,
               primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, activo,
               'usuarios' AS source
        FROM usuarios WHERE id = ? LIMIT 1`,

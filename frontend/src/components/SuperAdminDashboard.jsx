@@ -3,6 +3,7 @@ import DashboardReportes from './DashboardReportes'
 import GestionEmpresas from './GestionEmpresas'
 import GestionUsuariosGlobal from './GestionUsuariosGlobal'
 import ConfiguracionGlobal from './ConfiguracionGlobal'
+import PerfilSuperAdmin from './PerfilSuperAdmin'
 import AuditoriaLogs from './AuditoriaLogs'
 import '../SuperAdmin.css'
 
@@ -18,8 +19,14 @@ export default function SuperAdminDashboard({ onLogout }) {
     <div className="super-admin-dashboard">
       <div className="dashboard-nav">
         <div className="user-info">
-          <span className="user-name">👨‍💻 {userName}</span>
-          <span className="user-role rol-1">Super Administrador</span>
+          <button
+            className="user-profile-btn"
+            onClick={() => setActiveTab('perfil')}
+            title="Ver perfil"
+          >
+            <span className="user-name">👨‍💻 {userName}</span>
+            <span className="user-role rol-1">Super Administrador</span>
+          </button>
         </div>
         <button
           className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
@@ -52,6 +59,12 @@ export default function SuperAdminDashboard({ onLogout }) {
           📋 Auditoría
         </button>
         <button
+          className={`tab-btn ${activeTab === 'perfil' ? 'active' : ''}`}
+          onClick={() => setActiveTab('perfil')}
+        >
+          👤 Mi Perfil
+        </button>
+        <button
           className="tab-btn logout-btn"
           onClick={onLogout}
         >
@@ -65,6 +78,7 @@ export default function SuperAdminDashboard({ onLogout }) {
         {activeTab === 'usuarios' && <GestionUsuariosGlobal />}
         {activeTab === 'configuracion' && <ConfiguracionGlobal />}
         {activeTab === 'auditoria' && <AuditoriaLogs />}
+        {activeTab === 'perfil' && <PerfilSuperAdmin />}
       </div>
     </div>
   )
