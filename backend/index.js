@@ -68,6 +68,7 @@ try {
 	app.use('/api/plantillas-turno', require('./routes/plantillas'));
 	app.use('/api/configuraciones-malla', require('./routes/configuraciones-malla'));
 	app.use('/api/planificador', require('./routes/planificador'));
+	app.use('/api/perfiles', require('./routes/perfiles'));
 } catch (e) {
 	console.warn('Auth router not available:', e && e.message);
 }
