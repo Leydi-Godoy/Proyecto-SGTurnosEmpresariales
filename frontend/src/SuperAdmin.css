@@ -314,6 +314,37 @@
   gap: 12px;
 }
 
+.busqueda-usuarios-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 320px;
+}
+
+.busqueda-usuarios-container label {
+  color: #e2e8f0;
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.busqueda-usuarios-container input {
+  width: 100%;
+  min-width: 220px;
+  padding: 8px 12px;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(236, 72, 153, 0.2);
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+.busqueda-usuarios-container input:focus {
+  outline: none;
+  border-color: #f472b6;
+  background: rgba(30, 41, 59, 1);
+}
+
 .filtro-container label {
   color: #e2e8f0;
   font-weight: 500;
@@ -335,6 +366,12 @@
   outline: none;
   border-color: #f472b6;
   background: rgba(30, 41, 59, 1);
+}
+
+.usuarios-sin-resultados {
+  padding: 24px;
+  color: #94a3b8;
+  text-align: center;
 }
 
 .btn {
