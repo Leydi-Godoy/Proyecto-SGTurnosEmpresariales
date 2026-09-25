@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
     let [rows] = await pool.query(
       `SELECT id, empresa_id, codigo, nombre, descripcion
        FROM especialidades
-       WHERE empresa_id = ?
+       WHERE empresa_id = ? OR empresa_id IS NULL
        ORDER BY nombre ASC, id ASC`,
       [empresaId],
     )
@@ -48,6 +48,7 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   const empresaId = await getEmpresaId(req)
+  const especialidadId = Number(req.body?.especialidad_id || 0)
   const nombre = String(req.body?.nombre || '').trim()
   const descripcion = String(req.body?.descripcion || '').trim()
   const codigo = String(req.body?.codigo || nombre)
@@ -59,6 +60,46 @@ router.post('/', async (req, res) => {
     .replace(/^_|_$/g, '')
 
   if (!empresaId) return res.status(403).json({ error: 'empresa asociada requerida' })
+
+  if (especialidadId) {
+    try {
+      const [existingRows] = await pool.query(
+        `SELECT id, empresa_id, codigo, nombre, descripcion
+         FROM especialidades
+         WHERE id = ? AND (empresa_id = ? OR empresa_id IS NULL)
+         LIMIT 1`,
+        [especialidadId, empresaId],
+      )
+      const especialidad = existingRows[0]
+      if (!especialidad) return res.status(404).json({ error: 'especialidad no disponible para esta empresa' })
+      if (Number(especialidad.empresa_id) === empresaId) return res.json(especialidad)
+
+      const [companyRows] = await pool.query(
+        `SELECT id, empresa_id, codigo, nombre, descripcion
+         FROM especialidades
+         WHERE empresa_id = ? AND (codigo = ? OR LOWER(nombre) = LOWER(?))
+         LIMIT 1`,
+        [empresaId, especialidad.codigo, especialidad.nombre],
+      )
+      if (companyRows[0]) return res.json(companyRows[0])
+
+      const [result] = await pool.query(
+        `INSERT INTO especialidades (empresa_id, codigo, nombre, descripcion)
+         VALUES (?, ?, ?, ?)`,
+        [empresaId, especialidad.codigo, especialidad.nombre, especialidad.descripcion || null],
+      )
+      const [rows] = await pool.query(
+        'SELECT id, empresa_id, codigo, nombre, descripcion FROM especialidades WHERE id = ?',
+        [result.insertId],
+      )
+      return res.status(201).json(rows[0])
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'profile already exists for this company' })
+      console.error('profile association error', error)
+      return res.status(500).json({ error: 'could not associate profile' })
+    }
+  }
+
   if (!nombre) return res.status(400).json({ error: 'nombre is required' })
   if (!codigo) return res.status(400).json({ error: 'codigo is required' })
 

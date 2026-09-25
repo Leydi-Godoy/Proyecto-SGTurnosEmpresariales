@@ -462,8 +462,11 @@ export default function GestionEmpresas() {
                       type="checkbox"
                       checked={empresa.activo}
                       onChange={() => handleToggleActivo(empresa.id)}
+                      aria-label={`${empresa.activo ? 'Desactivar' : 'Activar'} ${empresa.nombre}`}
                     />
-                    <span className={`toggle ${empresa.activo ? 'activo' : 'inactivo'}`}>
+                    <span className={`toggle-track ${empresa.activo ? 'activo' : 'inactivo'}`} aria-hidden="true" />
+                    <span className={`toggle-label ${empresa.activo ? 'activo' : 'inactivo'}`}>
+                      <span className="toggle-status-dot" aria-hidden="true" />
                       {empresa.activo ? 'Activa' : 'Inactiva'}
                     </span>
                   </label>

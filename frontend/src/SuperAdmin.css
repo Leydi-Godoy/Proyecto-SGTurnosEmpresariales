@@ -664,52 +664,84 @@ table strong {
 .toggle-switch {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  width: fit-content;
+  min-height: 32px;
   cursor: pointer;
+  user-select: none;
 }
 
 .toggle-switch input {
-  width: 40px;
-  height: 24px;
-  cursor: pointer;
-  appearance: none;
-  background: rgba(100, 116, 139, 0.4);
-  border-radius: 12px;
-  transition: all 0.3s ease;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.toggle-track {
   position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex: 0 0 44px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 999px;
+  background: rgba(71, 85, 105, 0.8);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.28);
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
-.toggle-switch input:checked {
-  background: rgba(34, 197, 94, 0.4);
-}
-
-.toggle-switch input:before {
+.toggle-track::before {
   content: '';
   position: absolute;
-  width: 20px;
-  height: 20px;
-  border-radius: 10px;
-  background: white;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #f8fafc;
   top: 2px;
   left: 2px;
-  transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  transition: transform 0.25s ease;
 }
 
-.toggle-switch input:checked:before {
-  left: 18px;
+.toggle-track.activo {
+  border-color: rgba(52, 211, 153, 0.7);
+  background: #16805d;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1), inset 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-.toggle {
+.toggle-track.activo::before {
+  transform: translateX(20px);
+}
+
+.toggle-switch:has(input:focus-visible) .toggle-track {
+  outline: 2px solid #f472b6;
+  outline-offset: 3px;
+}
+
+.toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1;
 }
 
-.toggle.activo {
+.toggle-label.activo {
   color: #86efac;
 }
 
-.toggle.inactivo {
+.toggle-label.inactivo {
   color: #fca5a5;
+}
+
+.toggle-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
 }
 
 .acciones {
