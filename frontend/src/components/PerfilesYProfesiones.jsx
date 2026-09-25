@@ -10,8 +10,8 @@ export default function PerfilesYProfesiones() {
   })
   const [editando, setEditando] = useState(null)
   const [error, setError] = useState('')
+  const [cargando, setCargando] = useState(true)
   const [crearNuevoPerfil, setCrearNuevoPerfil] = useState(false)
-  const [profesionSeleccionada, setProfesionSeleccionada] = useState('')
 
   useEffect(() => {
     fetch('/api/perfiles', {
@@ -28,6 +28,7 @@ export default function PerfilesYProfesiones() {
         cantidad: 0
       }))))
       .catch(requestError => setError(requestError.message))
+      .finally(() => setCargando(false))
   }, [])
 
   const handleChange = (e) => {
@@ -41,18 +42,9 @@ export default function PerfilesYProfesiones() {
     setFormData(prev => ({ ...prev, nombre: value === '__nuevo__' ? '' : value }))
   }
 
-  const seleccionarProfesion = (e) => {
-    const value = e.target.value
-    setProfesionSeleccionada(value)
-    if (!value) return
-    setFormData(prev => ({
-      ...prev,
-      especialidades: prev.especialidades ? `${prev.especialidades}, ${value}` : value
-    }))
-  }
-
   const handleAgregar = () => {
     if (!formData.nombre) return alert('Nombre es requerido')
+
     const nombreNormalizado = formData.nombre.trim().toLocaleLowerCase()
     const duplicado = perfiles.some(perfil => perfil.nombre.trim().toLocaleLowerCase() === nombreNormalizado && perfil.id !== editando)
     if (duplicado) return alert('Ese perfil ya existe en la base de datos para esta empresa')
@@ -85,7 +77,6 @@ export default function PerfilesYProfesiones() {
     setFormData({ nombre: '', especialidades: '', cantidad: '' })
     setShowForm(false)
     setCrearNuevoPerfil(false)
-    setProfesionSeleccionada('')
   }
 
   const handleEditar = (perfil) => {
@@ -119,11 +110,11 @@ export default function PerfilesYProfesiones() {
       {showForm && (
         <div className="form-container">
           <div className="form-group">
-            <label>Nombre del Perfil</label>
+            <label>Cargo</label>
               <select value={crearNuevoPerfil ? '__nuevo__' : formData.nombre} onChange={seleccionarPerfil}>
-                <option value="">Selecciona un perfil existente</option>
+                <option value="">Selecciona un cargo existente</option>
                 {perfiles.map(perfil => <option key={perfil.id} value={perfil.nombre}>{perfil.nombre}</option>)}
-                <option value="__nuevo__">+ Crear un perfil nuevo</option>
+                <option value="__nuevo__">+ Crear un cargo nuevo</option>
               </select>
               {crearNuevoPerfil && (
                 <input
@@ -131,23 +122,9 @@ export default function PerfilesYProfesiones() {
                   name="nombre"
                   value={formData.nombre}
                   onChange={handleChange}
-                  placeholder="Nombre del perfil nuevo"
+                  placeholder="Nombre del cargo nuevo"
                 />
               )}
-          </div>
-          <div className="form-group">
-            <label>Especialidades (separadas por coma)</label>
-              <select value={profesionSeleccionada} onChange={seleccionarProfesion}>
-                <option value="">Selecciona una profesión existente</option>
-                {perfiles.map(perfil => <option key={`profesion-${perfil.id}`} value={perfil.nombre}>{perfil.nombre}</option>)}
-              </select>
-            <input
-              type="text"
-              name="especialidades"
-              value={formData.especialidades}
-              onChange={handleChange}
-              placeholder="Ej: Seguridad, Vigilancia Nocturna"
-            />
           </div>
           <div className="form-group">
             <label>Cantidad Estimada en Empresa</label>
@@ -169,7 +146,6 @@ export default function PerfilesYProfesiones() {
                 setShowForm(false)
                 setEditando(null)
                 setCrearNuevoPerfil(false)
-                setProfesionSeleccionada('')
                 setFormData({ nombre: '', especialidades: '', cantidad: '' })
               }}
             >
@@ -179,7 +155,11 @@ export default function PerfilesYProfesiones() {
         </div>
       )}
 
-      <div className="perfiles-grid">
+      {cargando && <p className="catalogo-estado">Cargando perfiles y profesiones...</p>}
+      {!cargando && !error && perfiles.length === 0 && (
+        <p className="catalogo-estado">Esta empresa todavía no tiene perfiles o profesiones registrados.</p>
+      )}
+      {!cargando && perfiles.length > 0 && <div className="perfiles-grid">
         {perfiles.map(perfil => (
           <div key={perfil.id} className="perfil-card">
             <div className="perfil-header">
@@ -204,7 +184,7 @@ export default function PerfilesYProfesiones() {
             </div>
           </div>
         ))}
-      </div>
+      </div>}
     </div>
   )
 }

@@ -4,35 +4,65 @@ const { pool } = require('./db');
 const { authenticateToken } = require('./auth');
 
 const router = express.Router();
-const SUPER_ADMIN_ROLES = new Set(['super_admin', 'superadmin', 'subad1', 'admin', 'developer', '1', 'super administrador', 'superadministrador']);
+const SUPER_ADMIN_ROLES = new Set(['super_admin', 'superadmin', 'subad1', 'developer', '1', 'super administrador', 'superadministrador']);
+const COMPANY_ADMIN_ROLES = new Set(['2', 'ademp2', 'admin', 'admin_empresa', 'admin empresa']);
 
-function requireSuperAdmin(req, res, next) {
+function isSuperAdmin(req) {
   const role = String(req.auth?.role || '').trim().toLowerCase();
-  if (!SUPER_ADMIN_ROLES.has(role)) {
-    return res.status(403).json({ error: 'super admin role required' });
+  return SUPER_ADMIN_ROLES.has(role);
+}
+
+function isCompanyAdmin(req) {
+  const role = String(req.auth?.role || '').trim().toLowerCase();
+  return COMPANY_ADMIN_ROLES.has(role);
+}
+
+function requireUsersAccess(req, res, next) {
+  if (!isSuperAdmin(req) && !isCompanyAdmin(req)) {
+    return res.status(403).json({ error: 'admin role required' });
   }
   next();
 }
 
-router.use(authenticateToken, requireSuperAdmin);
+router.use(authenticateToken, requireUsersAccess);
 
 router.get('/', async (req, res) => {
   try {
-    // Query the normalized Spanish table but keep API fields compatible
+    const companyFilter = isCompanyAdmin(req) ? 'WHERE u.empresa_id = ?' : '';
+    const params = isCompanyAdmin(req) ? [Number(req.auth.empresa_id)] : [];
     const [rows] = await pool.query(
       `SELECT u.id, u.empresa_id, e.nombre AS empresa_nombre, u.correo AS email,
         u.primer_nombre, u.segundo_nombre, u.primer_apellido, u.segundo_apellido,
         u.documento, u.id_rol AS rol,
         CONCAT_WS(' ', u.primer_nombre, u.segundo_nombre, u.primer_apellido, u.segundo_apellido) AS full_name,
-        u.activo AS is_active, u.creado_en AS created_at
+        u.activo AS is_active, u.creado_en AS created_at,
+        emp.especialidad_id, esp.nombre AS especialidad_nombre
        FROM usuarios u
        LEFT JOIN empresas e ON e.id = u.empresa_id
+       LEFT JOIN empleados emp ON emp.usuario_id = u.id AND emp.empresa_id = u.empresa_id
+       LEFT JOIN especialidades esp ON esp.id = emp.especialidad_id AND esp.empresa_id = u.empresa_id
+       ${companyFilter}
        ORDER BY u.id DESC`,
+      params,
     );
     res.json(rows);
   } catch (error) {
     console.error('users list error', error);
     res.status(500).json({ error: 'users table is not ready' });
+  }
+});
+
+router.get('/company', async (req, res) => {
+  const empresaId = Number(req.auth?.empresa_id);
+  if (!empresaId) return res.status(403).json({ error: 'empresa asociada requerida' });
+
+  try {
+    const [rows] = await pool.query('SELECT id, nombre FROM empresas WHERE id = ? LIMIT 1', [empresaId]);
+    if (!rows[0]) return res.status(404).json({ error: 'empresa no encontrada' });
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('company context error', error);
+    res.status(500).json({ error: 'company table is not ready' });
   }
 });
 
@@ -47,13 +77,22 @@ router.post('/', async (req, res) => {
     primer_apellido: primerApellido,
     segundo_apellido: segundoApellido,
     documento,
+    especialidad_id: especialidadId,
+    especialidad_ids: especialidadIds,
     rol = 5,
     activo = true,
   } = req.body || {};
 
   const correo = String(email || '').trim().toLowerCase();
-  const empresaIdNumero = Number(empresaId);
-  const rolNumero = Number(rol);
+  const empresaIdNumero = isCompanyAdmin(req) ? Number(req.auth.empresa_id) : Number(empresaId);
+  const rolNumero = isCompanyAdmin(req) ? 5 : Number(rol);
+  const especialidadIdsNumero = Array.from(new Set(
+    (Array.isArray(especialidadIds) ? especialidadIds : [especialidadId])
+      .filter(Boolean)
+      .map(Number)
+      .filter(Number.isInteger),
+  ));
+  const especialidadIdNumero = especialidadIdsNumero[0] || null;
   const nombreCompleto = String(fullName || '').trim();
   const nombres = primerNombre || nombreCompleto.split(/\s+/)[0] || null;
   const apellido = primerApellido || (nombreCompleto.split(/\s+/).length > 1 ? nombreCompleto.split(/\s+/).at(-1) : null);
@@ -65,7 +104,22 @@ router.post('/', async (req, res) => {
   if (!Number.isInteger(rolNumero) || rolNumero < 1 || rolNumero > 5) {
     return res.status(400).json({ error: 'rol debe estar entre 1 y 5' });
   }
+  if (isCompanyAdmin(req) && !especialidadIdsNumero.length) {
+    return res.status(400).json({ error: 'especialidad es requerida' });
+  }
   try {
+    if (especialidadIdsNumero.length) {
+      const placeholders = especialidadIdsNumero.map(() => '?').join(', ');
+      const [specialtyRows] = await pool.query(
+        `SELECT id FROM especialidades WHERE empresa_id = ? AND id IN (${placeholders})`,
+        [empresaIdNumero, ...especialidadIdsNumero],
+      );
+      const validSpecialtyIds = new Set(specialtyRows.map(row => Number(row.id)));
+      if (specialidadIdsNumero.some(id => !validSpecialtyIds.has(id))) {
+        return res.status(400).json({ error: 'una especialidad no pertenece a la empresa' });
+      }
+    }
+
     const passwordHash = await bcrypt.hash(contrasena, 12);
 
     const [result] = await pool.query(
@@ -88,13 +142,34 @@ router.post('/', async (req, res) => {
     if (rolNumero === 5) {
       const codigoEmpleado = `EMP${empresaIdNumero}_${result.insertId}`;
       await pool.query(
-        `INSERT IGNORE INTO empleados (usuario_id, empresa_id, codigo_empleado, estado, creado_en)
-         VALUES (?, ?, ?, 'activo', NOW())`,
-        [result.insertId, empresaIdNumero, codigoEmpleado],
+        `INSERT IGNORE INTO empleados
+          (usuario_id, empresa_id, codigo_empleado, especialidad_id, estado, creado_en)
+         VALUES (?, ?, ?, ?, 'activo', NOW())`,
+        [result.insertId, empresaIdNumero, codigoEmpleado, especialidadIdNumero],
       ).catch(err => {
         console.warn('Advertencia al crear empleado:', err.message);
         // No fallar si hay error al crear empleado, el trigger lo hará
       });
+
+      await pool.query(
+        `INSERT IGNORE INTO empleado_especialidades (empleado_id, especialidad_id)
+         SELECT id, ? FROM empleados WHERE usuario_id = ? AND empresa_id = ? LIMIT 1`,
+        [especialidadIdNumero, result.insertId, empresaIdNumero],
+      );
+      if (especialidadIdsNumero.length > 1) {
+        const [employeeRows] = await pool.query(
+          'SELECT id FROM empleados WHERE usuario_id = ? AND empresa_id = ? LIMIT 1',
+          [result.insertId, empresaIdNumero],
+        );
+        const employeeId = employeeRows[0]?.id;
+        if (employeeId) {
+          await pool.query(
+            `INSERT IGNORE INTO empleado_especialidades (empleado_id, especialidad_id)
+             VALUES ${especialidadIdsNumero.map(() => '(?, ?)').join(', ')}`,
+            especialidadIdsNumero.flatMap(id => [employeeId, id]),
+          );
+        }
+      }
     }
 
     res.status(201).json({
@@ -104,6 +179,8 @@ router.post('/', async (req, res) => {
       fullName: [nombres, segundoNombre, apellido, segundoApellido].filter(Boolean).join(' '),
       documento: documento ? String(documento).trim() : null,
       rol: rolNumero,
+      especialidad_id: especialidadIdNumero,
+      especialidad_ids: especialidadIdsNumero,
       activo: Boolean(activo),
     });
   } catch (error) {
