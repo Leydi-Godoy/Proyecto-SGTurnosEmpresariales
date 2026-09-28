@@ -7,6 +7,7 @@ export default function GestionUsuariosGlobal() {
   const [editando, setEditando] = useState(null)
   const [mensaje, setMensaje] = useState('')
   const [filtroEmpresa, setFiltroEmpresa] = useState('todas')
+  const [busqueda, setBusqueda] = useState('')
   const [formData, setFormData] = useState({
     primer_nombre: '',
     segundo_nombre: '',
@@ -226,9 +227,35 @@ export default function GestionUsuariosGlobal() {
     ))
   }
 
-  const usuariosFiltrados = filtroEmpresa === 'todas'
-    ? usuarios
-    : usuarios.filter(u => u.empresa_id === parseInt(filtroEmpresa))
+  const normalizarBusqueda = (valor) => String(valor ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+
+  const terminoBusqueda = normalizarBusqueda(busqueda)
+  const usuariosFiltrados = usuarios.filter(usuario => {
+    const coincideEmpresa = filtroEmpresa === 'todas' || usuario.empresa_id === parseInt(filtroEmpresa)
+    if (!coincideEmpresa) return false
+    if (!terminoBusqueda) return true
+
+    const valoresBuscables = [
+      usuario.id,
+      usuario.nombre,
+      usuario.primer_nombre,
+      usuario.segundo_nombre,
+      usuario.primer_apellido,
+      usuario.segundo_apellido,
+      usuario.email,
+      usuario.documento,
+      usuario.rol,
+      usuario.rol_nombre,
+      usuario.empresa_id,
+      usuario.empresa_nombre
+    ]
+
+    return valoresBuscables.some(valor => normalizarBusqueda(valor).includes(terminoBusqueda))
+  })
 
   return (
     <div className="gestion-usuarios-global-panel">
@@ -242,6 +269,16 @@ export default function GestionUsuariosGlobal() {
       )}
 
       <div className="toolbar">
+        <div className="busqueda-usuarios-container">
+          <label htmlFor="buscar-usuarios">Buscar usuario:</label>
+          <input
+            id="buscar-usuarios"
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Nombre, correo, rol, ID o empresa"
+          />
+        </div>
         <div className="filtro-container">
           <label>Filtrar por Empresa:</label>
           <select
@@ -472,6 +509,11 @@ export default function GestionUsuariosGlobal() {
                 </td>
               </tr>
             ))}
+            {usuariosFiltrados.length === 0 && (
+              <tr>
+                <td colSpan="7" className="usuarios-sin-resultados">No se encontraron usuarios con esos criterios.</td>
+              </tr>
+            )}
           </tbody>
         </table>
         <p className="tabla-footer">Total: {usuariosFiltrados.length} usuarios</p>

@@ -1,5 +1,28 @@
 import { useState, useEffect } from 'react'
 
+const cargosSugeridos = [
+  'Vigilante',
+  'Supervisor de Seguridad',
+  'Coordinador de Operaciones',
+  'Operador de Monitoreo',
+  'Recepcionista',
+  'Auxiliar de Servicios Generales',
+  'Personal de Limpieza',
+  'Técnico de Mantenimiento',
+  'Electricista',
+  'Conductor',
+  'Operador de Planta',
+  'Operario de Producción',
+  'Auxiliar de Bodega',
+  'Coordinador Logístico',
+  'Enfermero',
+  'Médico',
+  'Auxiliar Administrativo',
+  'Asesor de Servicio al Cliente',
+  'Agente de Call Center',
+  'Cocinero'
+]
+
 export default function PerfilesYProfesiones() {
   const [perfiles, setPerfiles] = useState([])
   const [showForm, setShowForm] = useState(false)
@@ -9,29 +32,26 @@ export default function PerfilesYProfesiones() {
     cantidad: ''
   })
   const [editando, setEditando] = useState(null)
+  const [error, setError] = useState('')
+  const [cargando, setCargando] = useState(true)
+  const [crearNuevoPerfil, setCrearNuevoPerfil] = useState(false)
 
   useEffect(() => {
-    // Mock data
-    setPerfiles([
-      {
-        id: 1,
-        nombre: 'Vigilante',
-        especialidades: ['Seguridad', 'Vigilancia Nocturna'],
-        cantidad: 12
-      },
-      {
-        id: 2,
-        nombre: 'Operario',
-        especialidades: ['Manejo de Máquinas', 'Seguridad Industrial'],
-        cantidad: 8
-      },
-      {
-        id: 3,
-        nombre: 'Supervisor',
-        especialidades: ['Liderazgo', 'Gestión de Personal'],
-        cantidad: 3
-      }
-    ])
+    fetch('/api/perfiles', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+      .then(async response => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los perfiles')
+        return data
+      })
+      .then(data => setPerfiles(data.map(perfil => ({
+        ...perfil,
+        especialidades: perfil.nombre ? [perfil.nombre] : [],
+        cantidad: 0
+      }))))
+      .catch(requestError => setError(requestError.message))
+      .finally(() => setCargando(false))
   }, [])
 
   const handleChange = (e) => {
@@ -39,8 +59,18 @@ export default function PerfilesYProfesiones() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  const seleccionarPerfil = (e) => {
+    const value = e.target.value
+    setCrearNuevoPerfil(value === '__nuevo__')
+    setFormData(prev => ({ ...prev, nombre: value === '__nuevo__' ? '' : value }))
+  }
+
   const handleAgregar = () => {
     if (!formData.nombre) return alert('Nombre es requerido')
+
+    const nombreNormalizado = formData.nombre.trim().toLocaleLowerCase()
+    const duplicado = perfiles.some(perfil => perfil.nombre.trim().toLocaleLowerCase() === nombreNormalizado && perfil.id !== editando)
+    if (duplicado) return alert('Ese perfil ya existe en la base de datos para esta empresa')
     
     if (editando) {
       setPerfiles(prev => prev.map(p => 
@@ -50,17 +80,26 @@ export default function PerfilesYProfesiones() {
       ))
       setEditando(null)
     } else {
-      const newPerfil = {
-        id: Math.max(...perfiles.map(p => p.id), 0) + 1,
-        nombre: formData.nombre,
-        especialidades: formData.especialidades.split(',').map(e => e.trim()),
-        cantidad: parseInt(formData.cantidad) || 0
-      }
-      setPerfiles([...perfiles, newPerfil])
+      fetch('/api/perfiles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ nombre: formData.nombre, descripcion: formData.especialidades })
+      })
+        .then(async response => {
+          const data = await response.json()
+          if (!response.ok) throw new Error(data.error || 'No se pudo crear el perfil')
+          return data
+        })
+        .then(data => setPerfiles(prev => [...prev, { ...data, especialidades: data.nombre ? [data.nombre] : [], cantidad: 0 }]))
+        .catch(requestError => setError(requestError.message))
     }
     
     setFormData({ nombre: '', especialidades: '', cantidad: '' })
     setShowForm(false)
+    setCrearNuevoPerfil(false)
   }
 
   const handleEditar = (perfil) => {
@@ -89,27 +128,35 @@ export default function PerfilesYProfesiones() {
         </button>
       </div>
 
+      {error && <div className="error-message">⚠️ {error}</div>}
+
       {showForm && (
         <div className="form-container">
           <div className="form-group">
-            <label>Nombre del Perfil</label>
-            <input
-              type="text"
-              name="nombre"
-              value={formData.nombre}
-              onChange={handleChange}
-              placeholder="Ej: Vigilante, Doctor, Operario"
-            />
-          </div>
-          <div className="form-group">
-            <label>Especialidades (separadas por coma)</label>
-            <input
-              type="text"
-              name="especialidades"
-              value={formData.especialidades}
-              onChange={handleChange}
-              placeholder="Ej: Seguridad, Vigilancia Nocturna"
-            />
+            <label>Cargo</label>
+              <select value={crearNuevoPerfil ? '__nuevo__' : formData.nombre} onChange={seleccionarPerfil}>
+                <option value="">Selecciona un cargo existente</option>
+                {perfiles.length > 0 && (
+                  <optgroup label="Cargos de esta empresa">
+                    {perfiles.map(perfil => <option key={perfil.id} value={perfil.nombre}>{perfil.nombre}</option>)}
+                  </optgroup>
+                )}
+                <optgroup label="Cargos sugeridos">
+                  {cargosSugeridos
+                    .filter(cargo => !perfiles.some(perfil => perfil.nombre.toLocaleLowerCase() === cargo.toLocaleLowerCase()))
+                    .map(cargo => <option key={`sugerido-${cargo}`} value={cargo}>{cargo}</option>)}
+                </optgroup>
+                <option value="__nuevo__">+ Crear un cargo nuevo</option>
+              </select>
+              {crearNuevoPerfil && (
+                <input
+                  type="text"
+                  name="nombre"
+                  value={formData.nombre}
+                  onChange={handleChange}
+                  placeholder="Nombre del cargo nuevo"
+                />
+              )}
           </div>
           <div className="form-group">
             <label>Cantidad Estimada en Empresa</label>
@@ -130,6 +177,7 @@ export default function PerfilesYProfesiones() {
               onClick={() => {
                 setShowForm(false)
                 setEditando(null)
+                setCrearNuevoPerfil(false)
                 setFormData({ nombre: '', especialidades: '', cantidad: '' })
               }}
             >
@@ -139,7 +187,11 @@ export default function PerfilesYProfesiones() {
         </div>
       )}
 
-      <div className="perfiles-grid">
+      {cargando && <p className="catalogo-estado">Cargando perfiles y profesiones...</p>}
+      {!cargando && !error && perfiles.length === 0 && (
+        <p className="catalogo-estado">Esta empresa todavía no tiene perfiles o profesiones registrados.</p>
+      )}
+      {!cargando && perfiles.length > 0 && <div className="perfiles-grid">
         {perfiles.map(perfil => (
           <div key={perfil.id} className="perfil-card">
             <div className="perfil-header">
@@ -164,7 +216,7 @@ export default function PerfilesYProfesiones() {
             </div>
           </div>
         ))}
-      </div>
+      </div>}
     </div>
   )
 }

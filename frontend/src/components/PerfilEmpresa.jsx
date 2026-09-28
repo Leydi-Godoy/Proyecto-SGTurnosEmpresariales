@@ -40,28 +40,44 @@ export default function PerfilEmpresa() {
     descripcion: ''
   })
   const [mensaje, setMensaje] = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    // Mock data
-    setEmpresa({
-      id: 1,
-      nombre: 'TechCorp Solutions',
-      pais: 'Colombia',
-      zona_horaria: 'America/Bogota',
-      moneda: 'COP',
-      contacto: 'Carlos Mendoza',
-      email_notificaciones: 'admin@techcorp.com',
-      descripcion: 'Empresa de soluciones tecnológicas'
+    let activo = true
+
+    fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
-    setFormData({
-      nombre: 'TechCorp Solutions',
-      pais: 'Colombia',
-      zona_horaria: 'America/Bogota',
-      moneda: 'COP',
-      contacto: 'Carlos Mendoza',
-      email_notificaciones: 'admin@techcorp.com',
-      descripcion: 'Empresa de soluciones tecnológicas'
-    })
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'No se pudo cargar la empresa')
+        if (!data.company) throw new Error('El usuario no tiene una empresa asociada')
+        return data.company
+      })
+      .then((company) => {
+        if (!activo) return
+        const companyData = {
+          ...company,
+          email_notificaciones: company.correo || '',
+          moneda: company.moneda || 'COP',
+          descripcion: company.descripcion || ''
+        }
+        setEmpresa(companyData)
+        setFormData({
+          nombre: companyData.nombre || '',
+          pais: companyData.pais || '',
+          zona_horaria: companyData.zona_horaria || 'UTC',
+          moneda: companyData.moneda,
+          contacto: companyData.contacto || '',
+          email_notificaciones: companyData.email_notificaciones,
+          descripcion: companyData.descripcion
+        })
+      })
+      .catch((requestError) => {
+        if (activo) setError(requestError.message)
+      })
+
+    return () => { activo = false }
   }, [])
 
   const handleChange = (e) => {
@@ -76,6 +92,7 @@ export default function PerfilEmpresa() {
     setTimeout(() => setMensaje(''), 3000)
   }
 
+  if (error) return <div className="loading error-message">{error}</div>
   if (!empresa) return <div className="loading">Cargando...</div>
 
   return (
