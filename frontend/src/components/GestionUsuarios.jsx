@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 
 const initialForm = {
   documento: '',
-  nombre: '',
+  primer_nombre: '',
+  segundo_nombre: '',
+  primer_apellido: '',
+  segundo_apellido: '',
   email: '',
   password: '',
-  especialidad_ids: [],
+  especialidad_id: '',
   activo: true
 }
 
@@ -54,14 +57,24 @@ export default function GestionUsuarios() {
 
   const handleChange = event => {
     const { name, value, type, checked } = event.target
-    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
+    const defaultPassword = `${String(formData.primer_apellido || '').replace(/\s+/g, '')}123`
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+      ...(name === 'primer_apellido' && (!prev.password || prev.password === defaultPassword)
+        ? { password: `${value.replace(/\s+/g, '')}123` }
+        : {})
+    }))
   }
 
   const validarForm = () => {
     if (!formData.documento.trim()) return 'Documento es requerido'
-    if (!formData.nombre.trim()) return 'Nombre completo es requerido'
+    if (!formData.primer_nombre.trim()) return 'Primer nombre es requerido'
+    if (!formData.segundo_nombre.trim()) return 'Segundo nombre es requerido'
+    if (!formData.primer_apellido.trim()) return 'Primer apellido es requerido'
+    if (!formData.segundo_apellido.trim()) return 'Segundo apellido es requerido'
     if (!formData.email.trim()) return 'Email es requerido'
-    if (!formData.especialidad_ids.length) return 'Selecciona al menos una profesión o especialidad'
+    if (!formData.especialidad_id) return 'Selecciona una profesión o especialidad'
     if (usuarios.some(usuario => usuario.documento === formData.documento.trim())) return 'Este documento ya existe'
     if (usuarios.some(usuario => usuario.email.toLowerCase() === formData.email.trim().toLowerCase())) return 'Este email ya existe'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return 'Email invalido'
@@ -80,26 +93,30 @@ export default function GestionUsuarios() {
         Authorization: `Bearer ${localStorage.getItem('token')}`
       },
       body: JSON.stringify({
-        fullName: formData.nombre.trim(),
+        fullName: [formData.primer_nombre, formData.segundo_nombre, formData.primer_apellido, formData.segundo_apellido].filter(Boolean).join(' '),
+        primer_nombre: formData.primer_nombre.trim(),
+        segundo_nombre: formData.segundo_nombre.trim(),
+        primer_apellido: formData.primer_apellido.trim(),
+        segundo_apellido: formData.segundo_apellido.trim(),
         email: formData.email.trim(),
         password: formData.password.trim(),
         documento: formData.documento.trim(),
-        especialidad_ids: formData.especialidad_ids.map(Number),
+        especialidad_id: Number(formData.especialidad_id),
         activo: formData.activo
       })
     })
     const data = await response.json()
     if (!response.ok) return setError(data.error || 'No se pudo crear el usuario')
 
-    const especialidadesSeleccionadas = especialidades.filter(item => formData.especialidad_ids.includes(String(item.id)))
+    const especialidadSeleccionada = especialidades.find(item => String(item.id) === formData.especialidad_id)
     setUsuarios(prev => [...prev, {
       ...data,
       nombre: data.fullName,
       activo: data.activo,
       rol: '5',
       rol_nombre: 'Empleado',
-      especialidad_nombre: especialidadesSeleccionadas.map(item => item.nombre).join(', '),
-      especialidades_nombres: especialidadesSeleccionadas.map(item => item.nombre).join(', '),
+      especialidad_nombre: especialidadSeleccionada?.nombre || '',
+      especialidades_nombres: especialidadSeleccionada?.nombre || '',
       fecha_creacion: new Date().toISOString().split('T')[0]
     }])
     setFormData(initialForm)
@@ -149,8 +166,20 @@ export default function GestionUsuarios() {
           <h3>➕ Crear Nuevo Usuario</h3>
           <div className="form-grid">
             <label>
-              Nombre Completo
-              <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} placeholder="Nombre completo del usuario" required />
+              Primer Nombre
+              <input type="text" name="primer_nombre" value={formData.primer_nombre} onChange={handleChange} placeholder="Primer nombre" required />
+            </label>
+            <label>
+              Segundo Nombre
+              <input type="text" name="segundo_nombre" value={formData.segundo_nombre} onChange={handleChange} placeholder="Segundo nombre" required />
+            </label>
+            <label>
+              Primer Apellido
+              <input type="text" name="primer_apellido" value={formData.primer_apellido} onChange={handleChange} placeholder="Primer apellido" required />
+            </label>
+            <label>
+              Segundo Apellido
+              <input type="text" name="segundo_apellido" value={formData.segundo_apellido} onChange={handleChange} placeholder="Segundo apellido" required />
             </label>
             <label>
               Documento
@@ -175,31 +204,17 @@ export default function GestionUsuarios() {
               <input type="text" value="Empleado" disabled />
               <small>Todos los usuarios creados aquí serán empleados.</small>
             </label>
-            <div className="specialty-field">
-              Profesiones o especialidades
-              <span className="especialidades-checkboxes">
-                {especialidades.length === 0 && <small>No hay especialidades disponibles para esta empresa.</small>}
-                {especialidades.map(especialidad => {
-                  const especialidadId = String(especialidad.id)
-                  return (
-                    <label key={especialidad.id} className="especialidad-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={formData.especialidad_ids.includes(especialidadId)}
-                        onChange={() => setFormData(prev => ({
-                          ...prev,
-                          especialidad_ids: prev.especialidad_ids.includes(especialidadId)
-                            ? prev.especialidad_ids.filter(id => id !== especialidadId)
-                            : [...prev.especialidad_ids, especialidadId]
-                        }))}
-                      />
-                      <span>{especialidad.nombre}</span>
-                    </label>
-                  )
-                })}
-              </span>
-              <small>Selecciona una o varias especialidades para vincularlas al empleado.</small>
-              </div>
+            <label>
+              Profesión o especialidad
+              <select name="especialidad_id" value={formData.especialidad_id} onChange={handleChange} required>
+                <option value="">Selecciona una profesión o especialidad</option>
+                {especialidades.map(especialidad => (
+                  <option key={especialidad.id} value={especialidad.id}>{especialidad.nombre}</option>
+                ))}
+              </select>
+              {especialidades.length === 0 && <small>No hay especialidades disponibles para esta empresa.</small>}
+              <small>Selecciona una especialidad para vincularla al empleado.</small>
+            </label>
           </div>
           <div className="form-group">
             <label className="checkbox-label">

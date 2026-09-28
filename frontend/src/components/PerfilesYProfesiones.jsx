@@ -1,5 +1,28 @@
 import { useState, useEffect } from 'react'
 
+const cargosSugeridos = [
+  'Vigilante',
+  'Supervisor de Seguridad',
+  'Coordinador de Operaciones',
+  'Operador de Monitoreo',
+  'Recepcionista',
+  'Auxiliar de Servicios Generales',
+  'Personal de Limpieza',
+  'Técnico de Mantenimiento',
+  'Electricista',
+  'Conductor',
+  'Operador de Planta',
+  'Operario de Producción',
+  'Auxiliar de Bodega',
+  'Coordinador Logístico',
+  'Enfermero',
+  'Médico',
+  'Auxiliar Administrativo',
+  'Asesor de Servicio al Cliente',
+  'Agente de Call Center',
+  'Cocinero'
+]
+
 export default function PerfilesYProfesiones() {
   const [perfiles, setPerfiles] = useState([])
   const [showForm, setShowForm] = useState(false)
@@ -113,7 +136,16 @@ export default function PerfilesYProfesiones() {
             <label>Cargo</label>
               <select value={crearNuevoPerfil ? '__nuevo__' : formData.nombre} onChange={seleccionarPerfil}>
                 <option value="">Selecciona un cargo existente</option>
-                {perfiles.map(perfil => <option key={perfil.id} value={perfil.nombre}>{perfil.nombre}</option>)}
+                {perfiles.length > 0 && (
+                  <optgroup label="Cargos de esta empresa">
+                    {perfiles.map(perfil => <option key={perfil.id} value={perfil.nombre}>{perfil.nombre}</option>)}
+                  </optgroup>
+                )}
+                <optgroup label="Cargos sugeridos">
+                  {cargosSugeridos
+                    .filter(cargo => !perfiles.some(perfil => perfil.nombre.toLocaleLowerCase() === cargo.toLocaleLowerCase()))
+                    .map(cargo => <option key={`sugerido-${cargo}`} value={cargo}>{cargo}</option>)}
+                </optgroup>
                 <option value="__nuevo__">+ Crear un cargo nuevo</option>
               </select>
               {crearNuevoPerfil && (

@@ -7,14 +7,18 @@ const router = express.Router();
 const SUPER_ADMIN_ROLES = new Set(['super_admin', 'superadmin', 'subad1', 'developer', '1', 'super administrador', 'superadministrador']);
 const COMPANY_ADMIN_ROLES = new Set(['2', 'ademp2', 'admin', 'admin_empresa', 'admin empresa']);
 
+function getRequestRole(req) {
+  return String(req.auth?.role ?? req.auth?.rol ?? req.auth?.Id_rol ?? '')
+    .trim()
+    .toLowerCase();
+}
+
 function isSuperAdmin(req) {
-  const role = String(req.auth?.role || '').trim().toLowerCase();
-  return SUPER_ADMIN_ROLES.has(role);
+  return SUPER_ADMIN_ROLES.has(getRequestRole(req));
 }
 
 function isCompanyAdmin(req) {
-  const role = String(req.auth?.role || '').trim().toLowerCase();
-  return COMPANY_ADMIN_ROLES.has(role);
+  return COMPANY_ADMIN_ROLES.has(getRequestRole(req));
 }
 
 function requireUsersAccess(req, res, next) {
@@ -92,7 +96,7 @@ router.post('/', async (req, res) => {
       .map(Number)
       .filter(Number.isInteger),
   ));
-  const especialidadIdNumero = especialidadIdsNumero[0] || null;
+  let especialidadIdNumero = especialidadIdsNumero[0] || null;
   const nombreCompleto = String(fullName || '').trim();
   const nombres = primerNombre || nombreCompleto.split(/\s+/)[0] || null;
   const apellido = primerApellido || (nombreCompleto.split(/\s+/).length > 1 ? nombreCompleto.split(/\s+/).at(-1) : null);
@@ -107,16 +111,40 @@ router.post('/', async (req, res) => {
   if (isCompanyAdmin(req) && !especialidadIdsNumero.length) {
     return res.status(400).json({ error: 'especialidad es requerida' });
   }
+  if (especialidadIdsNumero.length > 1) {
+    return res.status(400).json({ error: 'cada empleado solo puede tener una especialidad' });
+  }
   try {
     if (especialidadIdsNumero.length) {
       const placeholders = especialidadIdsNumero.map(() => '?').join(', ');
       const [specialtyRows] = await pool.query(
-        `SELECT id FROM especialidades WHERE empresa_id = ? AND id IN (${placeholders})`,
-        [empresaIdNumero, ...especialidadIdsNumero],
+        `SELECT id, empresa_id, codigo, nombre, descripcion
+         FROM especialidades
+         WHERE id IN (${placeholders}) AND (empresa_id = ? OR empresa_id IS NULL)`,
+        [...especialidadIdsNumero, empresaIdNumero],
       );
-      const validSpecialtyIds = new Set(specialtyRows.map(row => Number(row.id)));
-      if (specialidadIdsNumero.some(id => !validSpecialtyIds.has(id))) {
+      if (specialtyRows.length !== especialidadIdsNumero.length) {
         return res.status(400).json({ error: 'una especialidad no pertenece a la empresa' });
+      }
+
+      const specialty = specialtyRows.find(row => Number(row.id) === especialidadIdNumero)
+      if (specialty && Number(specialty.empresa_id) !== empresaIdNumero) {
+        const [companyRows] = await pool.query(
+          `SELECT id FROM especialidades
+           WHERE empresa_id = ? AND (codigo = ? OR LOWER(nombre) = LOWER(?))
+           LIMIT 1`,
+          [empresaIdNumero, specialty.codigo, specialty.nombre],
+        )
+        if (companyRows[0]) {
+          especialidadIdNumero = Number(companyRows[0].id)
+        } else {
+          const [result] = await pool.query(
+            `INSERT INTO especialidades (empresa_id, codigo, nombre, descripcion)
+             VALUES (?, ?, ?, ?)`,
+            [empresaIdNumero, specialty.codigo, specialty.nombre, specialty.descripcion || null],
+          )
+          especialidadIdNumero = Number(result.insertId)
+        }
       }
     }
 
@@ -151,25 +179,6 @@ router.post('/', async (req, res) => {
         // No fallar si hay error al crear empleado, el trigger lo hará
       });
 
-      await pool.query(
-        `INSERT IGNORE INTO empleado_especialidades (empleado_id, especialidad_id)
-         SELECT id, ? FROM empleados WHERE usuario_id = ? AND empresa_id = ? LIMIT 1`,
-        [especialidadIdNumero, result.insertId, empresaIdNumero],
-      );
-      if (especialidadIdsNumero.length > 1) {
-        const [employeeRows] = await pool.query(
-          'SELECT id FROM empleados WHERE usuario_id = ? AND empresa_id = ? LIMIT 1',
-          [result.insertId, empresaIdNumero],
-        );
-        const employeeId = employeeRows[0]?.id;
-        if (employeeId) {
-          await pool.query(
-            `INSERT IGNORE INTO empleado_especialidades (empleado_id, especialidad_id)
-             VALUES ${especialidadIdsNumero.map(() => '(?, ?)').join(', ')}`,
-            especialidadIdsNumero.flatMap(id => [employeeId, id]),
-          );
-        }
-      }
     }
 
     res.status(201).json({
@@ -180,7 +189,7 @@ router.post('/', async (req, res) => {
       documento: documento ? String(documento).trim() : null,
       rol: rolNumero,
       especialidad_id: especialidadIdNumero,
-      especialidad_ids: especialidadIdsNumero,
+      especialidad_ids: especialidadIdNumero ? [especialidadIdNumero] : [],
       activo: Boolean(activo),
     });
   } catch (error) {
