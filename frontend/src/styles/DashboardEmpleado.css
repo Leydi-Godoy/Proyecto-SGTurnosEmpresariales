@@ -1,0 +1,300 @@
+/* ========== DASHBOARD EMPLEADO ========== */
+
+.empleado-dashboard {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0e27 0%, #1a2847 100%);
+  padding: 2rem;
+  color: #f1f5f9;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid rgba(147, 197, 253, 0.2);
+}
+
+.dashboard-header h1 {
+  font-size: 2.5rem;
+  color: #93c5fd;
+  margin: 0;
+}
+
+.empleado-info-header {
+  display: flex;
+  gap: 2rem;
+  font-size: 1rem;
+  color: #cbd5e1;
+}
+
+.empleado-info-header span {
+  background: rgba(147, 197, 253, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid rgba(147, 197, 253, 0.2);
+}
+
+.message {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.message.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.message.success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.tabs-container {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  padding: 0.75rem 1.5rem;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  color: #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+  background: rgba(147, 197, 253, 0.15);
+  color: #93c5fd;
+  border-color: rgba(147, 197, 253, 0.4);
+}
+
+.tab-btn.active {
+  background: rgba(147, 197, 253, 0.2);
+  color: #93c5fd;
+  border-color: #93c5fd;
+}
+
+.download-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-excel {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.btn-excel:hover {
+  background: rgba(34, 197, 94, 0.3);
+  border-color: #86efac;
+}
+
+.btn-pdf {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.btn-pdf:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #fca5a5;
+}
+
+.malla-section,
+.mis-turnos-section {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.malla-section h2,
+.mis-turnos-section h2 {
+  color: #93c5fd;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.tabla-container {
+  overflow-x: auto;
+}
+
+.tabla-turnos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.tabla-turnos thead {
+  background: rgba(147, 197, 253, 0.1);
+  border-bottom: 2px solid rgba(147, 197, 253, 0.3);
+}
+
+.tabla-turnos th {
+  padding: 1rem;
+  text-align: left;
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.tabla-turnos td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  color: #cbd5e1;
+}
+
+.tabla-turnos tbody tr:hover {
+  background: rgba(147, 197, 253, 0.1);
+}
+
+.tabla-turnos tbody tr.mi-turno {
+  background: rgba(34, 197, 94, 0.1);
+  border-left: 4px solid #86efac;
+}
+
+.sin-asignar {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.turnos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.turno-card {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  border-radius: 10px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.turno-card:hover {
+  border-color: #86efac;
+  background: rgba(30, 41, 59, 0.8);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+}
+
+.turno-fecha {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.turno-nombre {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #86efac;
+  margin-bottom: 0.75rem;
+}
+
+.turno-hora {
+  font-size: 1rem;
+  color: #93c5fd;
+  margin-bottom: 0.75rem;
+}
+
+.turno-especialidad {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #94a3b8;
+  font-size: 1.1rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+  font-size: 1.2rem;
+  color: #93c5fd;
+}
+
+@media (max-width: 768px) {
+  .empleado-dashboard {
+    padding: 1rem;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .dashboard-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .empleado-info-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .tabs-container {
+    flex-direction: column;
+  }
+
+  .tab-btn {
+    width: 100%;
+  }
+
+  .download-buttons {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .malla-section,
+  .mis-turnos-section {
+    padding: 1rem;
+  }
+
+  .tabla-turnos {
+    font-size: 0.85rem;
+  }
+
+  .tabla-turnos th,
+  .tabla-turnos td {
+    padding: 0.5rem;
+  }
+
+  .turnos-grid {
+    grid-template-columns: 1fr;
+  }
+}

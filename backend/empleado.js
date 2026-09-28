@@ -50,6 +50,92 @@ router.get('/profile', async (req, res) => {
   }
 });
 
+// GET /perfil - Info del empleado logeado
+router.get('/perfil', async (req, res) => {
+  const id = req.auth?.id;
+  if (!id) return res.status(401).json({ error: 'invalid token' });
+  if (!pool) return res.json({});
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id AS id_usuario,
+              CONCAT_WS(' ', u.primer_nombre, u.segundo_nombre, u.primer_apellido, u.segundo_apellido) AS nombre,
+              u.correo, u.empresa_id, e.nombre_especialidad AS especialidad,
+              u.activo, u.creado_en
+       FROM usuarios u
+       LEFT JOIN especialidades e ON u.especialidad_id = e.id
+       WHERE u.id = ? LIMIT 1`,
+      [id],
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'empleado not found' });
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error('GET /api/empleado/perfil error', err);
+    return res.status(500).json({ error: 'could not fetch profile' });
+  }
+});
+
+// GET /malla-completa - Malla con todos los compañeros
+router.get('/malla-completa', async (req, res) => {
+  const empresaId = req.auth?.empresa_id;
+  if (!empresaId) return res.status(401).json({ error: 'invalid token' });
+  if (!pool) return res.json({ turnos: [] });
+
+  const { fecha_inicio, fecha_fin } = req.query || {};
+  
+  try {
+    const query = `
+      SELECT at.id, at.fecha, pt.nombre AS nombre_turno, pt.hora_inicio, pt.hora_fin,
+             CONCAT_WS(' ', u.primer_nombre, u.segundo_nombre, u.primer_apellido, u.segundo_apellido) AS nombre_empleado,
+             e.nombre_especialidad AS especialidad
+      FROM asignaciones_turno at
+      LEFT JOIN plantillas_turno pt ON at.plantilla_turno_id = pt.id
+      LEFT JOIN usuarios u ON at.usuario_id = u.id
+      LEFT JOIN especialidades e ON pt.especialidad_id = e.id
+      WHERE at.empresa_id = ?
+      ${fecha_inicio ? 'AND at.fecha >= ?' : ''}
+      ${fecha_fin ? 'AND at.fecha <= ?' : ''}
+      ORDER BY at.fecha ASC, pt.hora_inicio ASC
+      LIMIT 1000
+    `;
+    
+    const params = [empresaId];
+    if (fecha_inicio) params.push(fecha_inicio);
+    if (fecha_fin) params.push(fecha_fin);
+
+    const [rows] = await pool.query(query, params);
+    return res.json({ turnos: rows || [] });
+  } catch (err) {
+    console.error('GET /api/empleado/malla-completa error', err);
+    return res.status(500).json({ error: 'could not fetch malla' });
+  }
+});
+
+// GET /mis-turnos - Solo los turnos del empleado logeado
+router.get('/mis-turnos', async (req, res) => {
+  const usuarioId = req.auth?.id;
+  if (!usuarioId) return res.status(401).json({ error: 'invalid token' });
+  if (!pool) return res.json([]);
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT at.id, at.fecha, pt.nombre AS nombre_turno, pt.hora_inicio, pt.hora_fin,
+              e.nombre_especialidad AS especialidad
+       FROM asignaciones_turno at
+       LEFT JOIN plantillas_turno pt ON at.plantilla_turno_id = pt.id
+       LEFT JOIN especialidades e ON pt.especialidad_id = e.id
+       WHERE at.usuario_id = ?
+       ORDER BY at.fecha ASC, pt.hora_inicio ASC
+       LIMIT 500`,
+      [usuarioId],
+    );
+    return res.json(rows || []);
+  } catch (err) {
+    console.error('GET /api/empleado/mis-turnos error', err);
+    return res.status(500).json({ error: 'could not fetch turnos' });
+  }
+});
+
 router.get('/turnos', async (req, res) => {
   const id = req.auth?.id;
   if (!id) return res.status(401).json({ error: 'invalid token' });

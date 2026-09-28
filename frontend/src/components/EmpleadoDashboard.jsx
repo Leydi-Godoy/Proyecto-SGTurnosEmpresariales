@@ -3,6 +3,7 @@ import HomePanel from './HomePanel'
 import CalendarTurns from './CalendarTurns'
 import Novedades from './Novedades'
 import EditProfile from './EditProfile'
+import DashboardEmpleado from './DashboardEmpleado'
 
 export default function EmpleadoDashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState('inicio')
@@ -24,6 +25,10 @@ export default function EmpleadoDashboard({ onLogout }) {
                     <span className="icon">📅</span>
                     <span>Ver Turnos</span>
                   </button>
+                  <button className="quick-action-btn" onClick={() => setActiveTab('mallas')}>
+                    <span className="icon">📊</span>
+                    <span>Mallas y Descargas</span>
+                  </button>
                   <button className="quick-action-btn" onClick={() => setActiveTab('novedades')}>
                     <span className="icon">📝</span>
                     <span>Mis Solicitudes</span>
@@ -42,6 +47,16 @@ export default function EmpleadoDashboard({ onLogout }) {
         {activeTab === 'calendario' && (
           <div className="module">
             <CalendarTurns />
+            <button className="back-button" onClick={() => setActiveTab('inicio')}>
+              ← Volver al inicio
+            </button>
+          </div>
+        )}
+
+        {/* MODULO 2B: MALLAS Y DESCARGAS */}
+        {activeTab === 'mallas' && (
+          <div className="module">
+            <DashboardEmpleado />
             <button className="back-button" onClick={() => setActiveTab('inicio')}>
               ← Volver al inicio
             </button>
