@@ -1,59 +1,49 @@
 import { useState, useEffect } from 'react'
 
+async function leerRespuestaSedes(response) {
+  const contentType = response.headers.get('content-type') || ''
+  if (!contentType.includes('application/json')) {
+    if (response.status === 404) {
+      throw new Error('El backend no tiene disponible /api/sedes. Reinicia el servidor backend y vuelve a intentar.')
+    }
+    throw new Error(`El servidor devolvió una respuesta inesperada (HTTP ${response.status}).`)
+  }
+
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || `Error del servidor (HTTP ${response.status}).`)
+  return data
+}
+
 export default function EstructuraOrganizacional() {
   const [sedes, setSedes] = useState([])
-  const [areas, setAreas] = useState([])
-  const [activeSection, setActiveSection] = useState('sedes')
   const [showForm, setShowForm] = useState(false)
+  const [loadingSedes, setLoadingSedes] = useState(true)
+  const [savingSede, setSavingSede] = useState(false)
+  const [error, setError] = useState('')
+  const [mensaje, setMensaje] = useState('')
   const [formData, setFormData] = useState({
     nombre: '',
-    ciudad: '',
-    contacto: ''
+    direccion: '',
+    zona_horaria: ''
   })
-  const [editando, setEditando] = useState(null)
 
   useEffect(() => {
-    // Mock data
-    setSedes([
-      {
-        id: 1,
-        nombre: 'Sede Norte',
-        ciudad: 'Bogota',
-        contacto: 'Juan Perez',
-        activo: true
-      },
-      {
-        id: 2,
-        nombre: 'Sede Sur',
-        ciudad: 'Cali',
-        contacto: 'Maria Garcia',
-        activo: true
-      }
-    ])
+    let activo = true
+    const token = localStorage.getItem('token')
 
-    setAreas([
-      {
-        id: 1,
-        nombre: 'Piso de Ventas',
-        sede_id: 1,
-        supervisor: 'Carlos Lopez',
-        activo: true
-      },
-      {
-        id: 2,
-        nombre: 'Almacen',
-        sede_id: 1,
-        supervisor: 'Pedro Ruiz',
-        activo: true
-      },
-      {
-        id: 3,
-        nombre: 'Caja',
-        sede_id: 1,
-        supervisor: 'Ana Martinez',
-        activo: true
-      }
-    ])
+    fetch('/api/sedes', { headers: { Authorization: `Bearer ${token}` } })
+      .then(response => leerRespuestaSedes(response))
+      .then(data => {
+        if (activo) setSedes(data)
+      })
+      .catch(requestError => {
+        if (activo) setError(requestError.message)
+      })
+      .finally(() => {
+        if (activo) setLoadingSedes(false)
+      })
+
+    return () => { activo = false }
   }, [])
 
   const handleChange = (e) => {
@@ -61,58 +51,31 @@ export default function EstructuraOrganizacional() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleAgregar = () => {
-    if (!formData.nombre) return alert('Nombre es requerido')
+  const handleAgregar = async () => {
+    if (!formData.nombre.trim()) return setError('Nombre es requerido')
 
-    if (activeSection === 'sedes') {
-      if (editando) {
-        setSedes(prev => prev.map(s =>
-          s.id === editando ? { ...s, ...formData } : s
-        ))
-        setEditando(null)
-      } else {
-        setSedes([...sedes, {
-          id: Math.max(...sedes.map(s => s.id), 0) + 1,
-          ...formData,
-          activo: true
-        }])
-      }
-    } else {
-      if (editando) {
-        setAreas(prev => prev.map(a =>
-          a.id === editando ? { ...a, ...formData } : a
-        ))
-        setEditando(null)
-      } else {
-        setAreas([...areas, {
-          id: Math.max(...areas.map(a => a.id), 0) + 1,
-          ...formData,
-          activo: true
-        }])
-      }
-    }
+    try {
+      setSavingSede(true)
+      setError('')
+      setMensaje('')
+      const response = await fetch('/api/sedes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(formData)
+      })
+      const data = await leerRespuestaSedes(response)
 
-    setFormData({ nombre: '', ciudad: '', contacto: '' })
-    setShowForm(false)
-  }
-
-  const handleEditar = (item) => {
-    setFormData({
-      nombre: item.nombre,
-      ciudad: item.ciudad || '',
-      contacto: item.contacto || item.supervisor || ''
-    })
-    setEditando(item.id)
-    setShowForm(true)
-  }
-
-  const handleEliminar = (id, type) => {
-    if (confirm('Eliminar?')) {
-      if (type === 'sede') {
-        setSedes(sedes.filter(s => s.id !== id))
-      } else {
-        setAreas(areas.filter(a => a.id !== id))
-      }
+      setSedes(prev => [...prev, data])
+      setMensaje('Sede creada correctamente')
+      setFormData({ nombre: '', direccion: '', zona_horaria: '' })
+      setShowForm(false)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSavingSede(false)
     }
   }
 
@@ -120,38 +83,17 @@ export default function EstructuraOrganizacional() {
     <div className="estructura-org-panel">
       <div className="panel-header">
         <h2>Estructura Organizacional</h2>
-        <p className="subtitle">Define sedes y areas de tu empresa</p>
+        <p className="subtitle">Define las sedes de tu empresa</p>
       </div>
 
-      <div className="section-tabs">
-        <button
-          className={`tab-btn ${activeSection === 'sedes' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveSection('sedes')
-            setShowForm(false)
-            setEditando(null)
-          }}
-        >
-          Sedes
-        </button>
-        <button
-          className={`tab-btn ${activeSection === 'areas' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveSection('areas')
-            setShowForm(false)
-            setEditando(null)
-          }}
-        >
-          Areas
-        </button>
-      </div>
+      {error && <div className="error-message" role="alert">{error}</div>}
+      {mensaje && <div className="success-message" role="status">{mensaje}</div>}
 
       <div className="section-content">
-        {activeSection === 'sedes' && (
-          <div className="section-sede">
+        <div className="section-sede">
             <div className="section-header">
               <h3>Sedes</h3>
-              <button className="btn-agregar" onClick={() => setShowForm(true)}>
+              <button className="btn-agregar" onClick={() => setShowForm(true)} disabled={loadingSedes}>
                 + Agregar Sede
               </button>
             </div>
@@ -169,35 +111,36 @@ export default function EstructuraOrganizacional() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Ciudad</label>
+                  <label>Dirección</label>
                   <input
                     type="text"
-                    name="ciudad"
-                    value={formData.ciudad}
+                    name="direccion"
+                    value={formData.direccion}
                     onChange={handleChange}
-                    placeholder="Ciudad"
+                    maxLength={512}
+                    placeholder="Dirección de la sede"
                   />
                 </div>
                 <div className="form-group">
-                  <label>Contacto</label>
+                  <label>Zona horaria</label>
                   <input
                     type="text"
-                    name="contacto"
-                    value={formData.contacto}
+                    name="zona_horaria"
+                    value={formData.zona_horaria}
                     onChange={handleChange}
-                    placeholder="Nombre del contacto"
+                    maxLength={64}
+                    placeholder="Ej: America/Bogota"
                   />
                 </div>
                 <div className="action-buttons">
-                  <button className="btn-guardar" onClick={handleAgregar}>
-                    Guardar
+                  <button className="btn-guardar" onClick={handleAgregar} disabled={savingSede}>
+                    {savingSede ? 'Guardando...' : 'Guardar'}
                   </button>
                   <button
                     className="btn-cancelar"
                     onClick={() => {
                       setShowForm(false)
-                      setEditando(null)
-                      setFormData({ nombre: '', ciudad: '', contacto: '' })
+                      setFormData({ nombre: '', direccion: '', zona_horaria: '' })
                     }}
                   >
                     Cancelar
@@ -207,98 +150,18 @@ export default function EstructuraOrganizacional() {
             )}
 
             <div className="items-list">
+              {loadingSedes && <p>Cargando sedes...</p>}
+              {!loadingSedes && !sedes.length && !error && <p>No hay sedes registradas.</p>}
               {sedes.map(sede => (
                 <div key={sede.id} className="item-card">
                   <div className="item-info">
                     <h4>{sede.nombre}</h4>
-                    <p>{sede.ciudad} | {sede.contacto}</p>
-                  </div>
-                  <div className="item-actions">
-                    <button className="btn-edit" onClick={() => handleEditar(sede)}>
-                      Editar
-                    </button>
-                    <button className="btn-delete" onClick={() => handleEliminar(sede.id, 'sede')}>
-                      Eliminar
-                    </button>
+                    <p>{sede.direccion || 'Sin dirección'}{sede.zona_horaria ? ` | ${sede.zona_horaria}` : ''}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {activeSection === 'areas' && (
-          <div className="section-area">
-            <div className="section-header">
-              <h3>Areas</h3>
-              <button className="btn-agregar" onClick={() => setShowForm(true)}>
-                + Agregar Area
-              </button>
-            </div>
-
-            {showForm && (
-              <div className="form-container">
-                <div className="form-group">
-                  <label>Nombre Area</label>
-                  <input
-                    type="text"
-                    name="nombre"
-                    value={formData.nombre}
-                    onChange={handleChange}
-                    placeholder="Ej: Piso de Ventas, Almacen"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Supervisor/Responsable</label>
-                  <input
-                    type="text"
-                    name="contacto"
-                    value={formData.contacto}
-                    onChange={handleChange}
-                    placeholder="Nombre del supervisor"
-                  />
-                </div>
-                <div className="action-buttons">
-                  <button className="btn-guardar" onClick={handleAgregar}>
-                    Guardar
-                  </button>
-                  <button
-                    className="btn-cancelar"
-                    onClick={() => {
-                      setShowForm(false)
-                      setEditando(null)
-                      setFormData({ nombre: '', ciudad: '', contacto: '' })
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="items-list">
-              {areas.map(area => {
-                const sede = sedes.find(s => s.id === area.sede_id)
-                return (
-                  <div key={area.id} className="item-card">
-                    <div className="item-info">
-                      <h4>{area.nombre}</h4>
-                      <p>{sede?.nombre} | Supervisor: {area.supervisor}</p>
-                    </div>
-                    <div className="item-actions">
-                      <button className="btn-edit" onClick={() => handleEditar(area)}>
-                        Editar
-                      </button>
-                      <button className="btn-delete" onClick={() => handleEliminar(area.id, 'area')}>
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   )
