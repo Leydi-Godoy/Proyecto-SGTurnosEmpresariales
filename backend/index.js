@@ -64,6 +64,8 @@ try {
 	app.use('/api/empresas', require('./empresas'));
 	app.use('/api/planes', require('./planes'));
 	app.use('/api/empleado', require('./empleado'));
+	app.use('/api/sedes', require('./routes/sedes'));
+	app.use('/api/plantillas-cobertura', require('./routes/plantillas-cobertura'));
 	app.use('/api/turnos', require('./routes/turnos'));
 	app.use('/api/plantillas-turno', require('./routes/plantillas'));
 	app.use('/api/configuraciones-malla', require('./routes/configuraciones-malla'));
