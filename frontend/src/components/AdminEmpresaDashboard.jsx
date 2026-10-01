@@ -57,6 +57,12 @@ export default function AdminEmpresaDashboard({ onLogout }) {
           👥 Perfiles/Profesiones
         </button>
         <button
+          className={`tab-btn ${activeTab === 'usuarios' ? 'active' : ''}`}
+          onClick={() => setActiveTab('usuarios')}
+        >
+          👤 Gestión Usuarios
+        </button>
+        <button
           className={`tab-btn ${activeTab === 'modalidades' ? 'active' : ''}`}
           onClick={() => setActiveTab('modalidades')}
         >
@@ -73,12 +79,6 @@ export default function AdminEmpresaDashboard({ onLogout }) {
           onClick={() => setActiveTab('cobertura')}
         >
           📊 Plantillas Cobertura
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'usuarios' ? 'active' : ''}`}
-          onClick={() => setActiveTab('usuarios')}
-        >
-          👤 Gestión Usuarios
         </button>
         <button className="tab-btn logout-btn" onClick={onLogout}>
           🚪 Salir

@@ -22,21 +22,37 @@ router.get('/', async (req, res) => {
 
   try {
     let [rows] = await pool.query(
-      `SELECT id, empresa_id, codigo, nombre, descripcion
-       FROM especialidades
-       WHERE empresa_id = ? OR empresa_id IS NULL
-       ORDER BY nombre ASC, id ASC`,
-      [empresaId],
+      `SELECT especialidad.id, especialidad.empresa_id, especialidad.codigo,
+              especialidad.nombre, especialidad.descripcion,
+              COUNT(DISTINCT empleado.id) AS cantidad
+       FROM especialidades AS especialidad
+       LEFT JOIN empleados AS empleado
+         ON empleado.empresa_id = ?
+        AND empleado.estado = 'activo'
+        AND empleado.especialidad_id = especialidad.id
+       WHERE especialidad.empresa_id = ? OR especialidad.empresa_id IS NULL
+       GROUP BY especialidad.id, especialidad.empresa_id, especialidad.codigo,
+                especialidad.nombre, especialidad.descripcion
+       ORDER BY especialidad.nombre ASC, especialidad.id ASC`,
+      [empresaId, empresaId],
     )
 
     // Companies without their own catalog can reuse the existing catalog.
     if (!rows.length) {
       [rows] = await pool.query(
-        `SELECT MIN(id) AS id, MIN(empresa_id) AS empresa_id,
-                MIN(codigo) AS codigo, nombre, MIN(descripcion) AS descripcion
-         FROM especialidades
-         GROUP BY nombre
-         ORDER BY nombre ASC, id ASC`,
+        `SELECT MIN(especialidad.id) AS id,
+                MIN(especialidad.empresa_id) AS empresa_id,
+                MIN(especialidad.codigo) AS codigo, especialidad.nombre,
+                MIN(especialidad.descripcion) AS descripcion,
+                COUNT(DISTINCT empleado.id) AS cantidad
+         FROM especialidades AS especialidad
+         LEFT JOIN empleados AS empleado
+           ON empleado.empresa_id = ?
+          AND empleado.estado = 'activo'
+          AND empleado.especialidad_id = especialidad.id
+         GROUP BY especialidad.nombre
+         ORDER BY especialidad.nombre ASC, id ASC`,
+        [empresaId],
       )
     }
     return res.json(rows)

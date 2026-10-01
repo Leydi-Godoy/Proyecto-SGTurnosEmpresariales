@@ -48,7 +48,7 @@ export default function PerfilesYProfesiones() {
       .then(data => setPerfiles(data.map(perfil => ({
         ...perfil,
         especialidades: perfil.nombre ? [perfil.nombre] : [],
-        cantidad: 0
+        cantidad: Number(perfil.cantidad) || 0
       }))))
       .catch(requestError => setError(requestError.message))
       .finally(() => setCargando(false))

@@ -140,6 +140,11 @@ router.get('/', async (req, res) => {
     return res.json(agruparPlantillas(rows))
   } catch (error) {
     console.error('coverage templates list error', error)
+    if (['ER_BAD_FIELD_ERROR', 'ER_NO_SUCH_TABLE'].includes(error.code)) {
+      return res.status(503).json({
+        error: 'Falta aplicar la migración backend/migrations/20_plantillas_cobertura_requerimientos.sql en la base de datos.'
+      })
+    }
     return res.status(500).json({ error: 'could not list coverage templates' })
   }
 })

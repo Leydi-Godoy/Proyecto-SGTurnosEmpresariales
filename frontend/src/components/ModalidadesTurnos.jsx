@@ -38,6 +38,8 @@ export default function ModalidadesTurnos() {
 
   const guardarModalidad = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
     if (!formModalidad.nombre || !formModalidad.hora_inicio || !formModalidad.hora_fin) {
       setError('Nombre y horarios son requeridos');
       return;
@@ -49,9 +51,19 @@ export default function ModalidadesTurnos() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ empresa_id: empresaId, ...formModalidad })
+        body: JSON.stringify({
+          empresa_id: empresaId,
+          ...formModalidad,
+          hora_inicio: `${formModalidad.hora_inicio}:00`,
+          hora_fin: `${formModalidad.hora_fin}:00`
+        })
       });
-      if (!res.ok) throw new Error('Error');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.details || 'No se pudo guardar la modalidad');
+      const modalidadGuardada = data.plantilla;
+      setModalidades(prev => editingModalidad
+        ? prev.map(modalidad => modalidad.id === modalidadGuardada.id ? modalidadGuardada : modalidad)
+        : [modalidadGuardada, ...prev]);
       setSuccess('Guardado exitosamente');
       setShowFormModalidad(false);
       setFormModalidad({ nombre: '', descripcion: '', hora_inicio: '08:00', hora_fin: '16:00', activo: true });
@@ -135,10 +147,19 @@ export default function ModalidadesTurnos() {
                 <div className={`card-badge ${m.activo ? 'active' : 'inactive'}`}>{m.activo ? 'Activo' : 'Inactivo'}</div>
                 {m.descripcion && <div className="card-desc">{m.descripcion}</div>}
                 <div className="card-body">
-                  <div className="info-row"><span className="label">Horario:</span> <span className="value">{m.hora_inicio} - {m.hora_fin}</span></div>
+                  <div className="info-row"><span className="label">Horario:</span> <span className="value">{m.hora_inicio?.slice(0, 5)} - {m.hora_fin?.slice(0, 5)}</span></div>
                 </div>
                 <div className="card-actions">
-                  <button className="btn-small edit" onClick={() => {setEditingModalidad(m); setFormModalidad(m); setShowFormModalidad(true);}}>Editar</button>
+                    <button className="btn-small edit" onClick={() => {
+                      setEditingModalidad(m);
+                      setFormModalidad({
+                        ...m,
+                        hora_inicio: m.hora_inicio?.slice(0, 5) || '',
+                        hora_fin: m.hora_fin?.slice(0, 5) || '',
+                        activo: Boolean(m.activo)
+                      });
+                      setShowFormModalidad(true);
+                    }}>Editar</button>
                   <button className="btn-small delete">Eliminar</button>
                 </div>
               </div>
