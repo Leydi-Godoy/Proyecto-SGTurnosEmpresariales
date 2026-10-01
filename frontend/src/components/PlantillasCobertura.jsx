@@ -12,33 +12,12 @@ async function leerCatalogo(response, nombre) {
 }
 
 export default function PlantillasCobertura() {
-  const [plantillas, setPlantillas] = useState([
-    {
-      id: 1,
-      sede_id: 1,
-      sede: 'Sede Norte',
-      turno: 'Mañana',
-      requerimientos: [
-        { perfil: 'Vendedor', cantidad: 3 },
-        { perfil: 'Cajero', cantidad: 1 },
-        { perfil: 'Supervisor', cantidad: 1 }
-      ]
-    },
-    {
-      id: 2,
-      sede_id: 1,
-      sede: 'Sede Norte',
-      turno: 'Tarde',
-      requerimientos: [
-        { perfil: 'Operario', cantidad: 2 },
-        { perfil: 'Supervisor', cantidad: 1 }
-      ]
-    }
-  ])
+  const [plantillas, setPlantillas] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [sedes, setSedes] = useState([])
   const [especialidades, setEspecialidades] = useState([])
   const [loadingCatalogos, setLoadingCatalogos] = useState(true)
+  const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
   const [requerimientos, setRequerimientos] = useState([])
   const [requerimientoActual, setRequerimientoActual] = useState({ especialidad_id: '', cantidad: '' })
@@ -52,22 +31,20 @@ export default function PlantillasCobertura() {
     let activo = true
     const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` }
 
-    Promise.all([
-      fetch('/api/sedes', { headers }),
-      fetch('/api/perfiles', { headers })
+    Promise.allSettled([
+      fetch('/api/sedes', { headers }).then(response => leerCatalogo(response, 'las sedes')),
+      fetch('/api/perfiles', { headers }).then(response => leerCatalogo(response, 'las especialidades')),
+      fetch('/api/plantillas-cobertura', { headers }).then(response => leerCatalogo(response, 'las plantillas de cobertura'))
     ])
-      .then(async ([sedesResponse, especialidadesResponse]) => {
-        const [sedesData, especialidadesData] = await Promise.all([
-          leerCatalogo(sedesResponse, 'las sedes'),
-          leerCatalogo(especialidadesResponse, 'las especialidades')
-        ])
-        if (activo) {
-          setSedes(sedesData)
-          setEspecialidades(especialidadesData)
-        }
-      })
-      .catch(requestError => {
-        if (activo) setError(requestError.message)
+      .then(([sedesResult, especialidadesResult, plantillasResult]) => {
+        if (!activo) return
+        if (sedesResult.status === 'fulfilled') setSedes(sedesResult.value)
+        if (especialidadesResult.status === 'fulfilled') setEspecialidades(especialidadesResult.value)
+        if (plantillasResult.status === 'fulfilled') setPlantillas(plantillasResult.value)
+
+        const failedResult = [sedesResult, especialidadesResult, plantillasResult]
+          .find(result => result.status === 'rejected')
+        if (failedResult) setError(failedResult.reason.message)
       })
       .finally(() => {
         if (activo) setLoadingCatalogos(false)
@@ -107,44 +84,66 @@ export default function PlantillasCobertura() {
     setRequerimientoActual({ especialidad_id: '', cantidad: '' })
   }
 
-  const handleAgregar = () => {
-    if (!formData.sede_id || !formData.turno || requerimientos.length === 0) {
+  const handleAgregar = async () => {
+    if (!formData.sede_id || !formData.turno) {
       return setError('Selecciona una sede, un turno y agrega al menos un requerimiento.')
     }
 
-    const sedeFounded = sedes.find(s => Number(s.id) === Number(formData.sede_id))
-    const sedeNombre = sedeFounded ? sedeFounded.nombre : ''
+    let requerimientosFinales = requerimientos
+    if (requerimientoActual.especialidad_id || requerimientoActual.cantidad) {
+      const cantidad = Number(requerimientoActual.cantidad)
+      if (!requerimientoActual.especialidad_id || !Number.isInteger(cantidad) || cantidad < 1) {
+        return setError('Completa la especialidad y una cantidad válida antes de guardar.')
+      }
 
-    if (editando) {
-      setPlantillas(prev => prev.map(p =>
-        p.id === editando
-          ? {
-              id: editando,
-              sede_id: Number(formData.sede_id),
-              sede: sedeNombre,
-              turno: formData.turno,
-              requerimientos
-            }
-          : p
-      ))
-      setEditando(null)
-    } else {
-      setPlantillas([...plantillas, {
-        id: Math.max(...plantillas.map(p => p.id), 0) + 1,
-        sede_id: Number(formData.sede_id),
-        sede: sedeNombre,
-        turno: formData.turno,
-        requerimientos
-      }])
+      const especialidad = especialidades.find(item => Number(item.id) === Number(requerimientoActual.especialidad_id))
+      if (!especialidad) return setError('La especialidad seleccionada no está disponible para esta empresa.')
+      if (requerimientos.some(item => Number(item.especialidad_id) === Number(especialidad.id))) {
+        return setError('Esa especialidad ya está agregada a los requerimientos.')
+      }
+      requerimientosFinales = [...requerimientos, {
+        especialidad_id: especialidad.id,
+        perfil: especialidad.nombre,
+        cantidad
+      }]
     }
 
-    setFormData({
-      sede_id: '',
-      turno: ''
-    })
-    setRequerimientos([])
-    setRequerimientoActual({ especialidad_id: '', cantidad: '' })
-    setShowForm(false)
+    if (requerimientosFinales.length === 0) {
+      return setError('Selecciona una sede, un turno y agrega al menos un requerimiento.')
+    }
+
+    setGuardando(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/plantillas-cobertura${editando ? `/${editando}` : ''}`, {
+        method: editando ? 'PUT' : 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sede_id: Number(formData.sede_id),
+          turno: formData.turno,
+          requerimientos: requerimientosFinales.map(item => ({
+            especialidad_id: Number(item.especialidad_id),
+            cantidad: Number(item.cantidad)
+          }))
+        })
+      })
+      const plantillaGuardada = await leerCatalogo(response, 'guardar la plantilla de cobertura')
+      setPlantillas(prev => editando
+        ? prev.map(plantilla => plantilla.id === editando ? plantillaGuardada : plantilla)
+        : [plantillaGuardada, ...prev])
+      setEditando(null)
+      setFormData({ sede_id: '', turno: '' })
+      setRequerimientos([])
+      setRequerimientoActual({ especialidad_id: '', cantidad: '' })
+      setShowForm(false)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setGuardando(false)
+    }
   }
 
   const handleEditar = (plantilla) => {
@@ -158,9 +157,21 @@ export default function PlantillasCobertura() {
     setShowForm(true)
   }
 
-  const handleEliminar = (id) => {
+  const handleEliminar = async (id) => {
     if (confirm('Eliminar plantilla?')) {
-      setPlantillas(plantillas.filter(p => p.id !== id))
+      setError('')
+      try {
+        const response = await fetch(`/api/plantillas-cobertura/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        })
+        if (!response.ok) {
+          await leerCatalogo(response, 'eliminar la plantilla de cobertura')
+        }
+        setPlantillas(prev => prev.filter(plantilla => plantilla.id !== id))
+      } catch (requestError) {
+        setError(requestError.message)
+      }
     }
   }
 
@@ -178,9 +189,10 @@ export default function PlantillasCobertura() {
         <p>Las plantillas definen cuantos empleados de cada perfil se necesitan en cada turno</p>
       </div>
 
+      {error && <div className="error-message" role="alert">{error}</div>}
+
       {showForm && (
         <div className="form-container">
-          {error && <div className="error-message" role="alert">{error}</div>}
           <div className="form-group">
             <label>Sede</label>
             <select name="sede_id" value={formData.sede_id} onChange={handleChange} disabled={loadingCatalogos || sedes.length === 0}>
@@ -251,8 +263,8 @@ export default function PlantillasCobertura() {
             )}
           </div>
           <div className="action-buttons">
-            <button className="btn-guardar" onClick={handleAgregar}>
-              Guardar
+            <button className="btn-guardar" onClick={handleAgregar} disabled={guardando || loadingCatalogos}>
+              {guardando ? 'Guardando...' : 'Guardar'}
             </button>
             <button
               className="btn-cancelar"

@@ -21,6 +21,7 @@ export default function GestionUsuarios() {
   const [especialidades, setEspecialidades] = useState([])
   const [empresa, setEmpresa] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const [usuarioEditando, setUsuarioEditando] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [formData, setFormData] = useState(initialForm)
   const [mensaje, setMensaje] = useState('')
@@ -125,6 +126,48 @@ export default function GestionUsuarios() {
     setTimeout(() => setMensaje(''), 3000)
   }
 
+  const handleEditarEspecialidad = usuario => {
+    setUsuarioEditando(usuario)
+    setFormData({ ...initialForm, especialidad_id: String(usuario.especialidad_id || '') })
+    setError('')
+    setShowForm(true)
+  }
+
+  const handleGuardarEspecialidad = async () => {
+    if (!formData.especialidad_id) return setError('Selecciona una profesión o especialidad')
+
+    setError('')
+    try {
+      const response = await fetch(`/api/users/${usuarioEditando.id}/especialidad`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ especialidad_id: Number(formData.especialidad_id) })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'No se pudo asignar la profesión')
+
+      setUsuarios(prev => prev.map(usuario => usuario.id === usuarioEditando.id
+        ? {
+            ...usuario,
+            especialidad_id: data.especialidad_id,
+            especialidad_nombre: data.especialidad_nombre,
+            especialidades_nombres: data.especialidad_nombre
+          }
+        : usuario
+      ))
+      setShowForm(false)
+      setUsuarioEditando(null)
+      setFormData(initialForm)
+      setMensaje('Profesión asignada correctamente')
+      setTimeout(() => setMensaje(''), 3000)
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }
+
   const usuariosFiltrados = usuarios.filter(usuario => {
     const search = searchTerm.toLowerCase()
     return usuario.nombre.toLowerCase().includes(search) ||
@@ -137,7 +180,7 @@ export default function GestionUsuarios() {
       <div className="panel-header">
         <h2>Gestion de Usuarios</h2>
         <p className="subtitle">Crea empleados de tu empresa y asigna su profesión o especialidad</p>
-        <button className="btn-agregar" onClick={() => setShowForm(true)}>
+        <button className="btn-agregar" onClick={() => { setUsuarioEditando(null); setFormData(initialForm); setShowForm(true) }}>
           + Crear Nuevo Usuario
         </button>
       </div>
@@ -163,7 +206,8 @@ export default function GestionUsuarios() {
 
       {showForm && (
         <div className="form-container">
-          <h3>➕ Crear Nuevo Usuario</h3>
+          <h3>{usuarioEditando ? `Asignar profesión a ${usuarioEditando.nombre}` : '➕ Crear Nuevo Usuario'}</h3>
+          {!usuarioEditando && (
           <div className="form-grid">
             <label>
               Primer Nombre
@@ -204,6 +248,9 @@ export default function GestionUsuarios() {
               <input type="text" value="Empleado" disabled />
               <small>Todos los usuarios creados aquí serán empleados.</small>
             </label>
+          </div>
+          )}
+          <div className="form-grid">
             <label>
               Profesión o especialidad
               <select name="especialidad_id" value={formData.especialidad_id} onChange={handleChange} required>
@@ -216,15 +263,15 @@ export default function GestionUsuarios() {
               <small>Selecciona una especialidad para vincularla al empleado.</small>
             </label>
           </div>
-          <div className="form-group">
+          {!usuarioEditando && <div className="form-group">
             <label className="checkbox-label">
               <input type="checkbox" name="activo" checked={formData.activo} onChange={handleChange} />
               Usuario Activo
             </label>
-          </div>
+          </div>}
           <div className="form-actions">
-            <button className="btn btn-success" onClick={handleCrear}>💾 Guardar</button>
-            <button className="btn btn-secondary" onClick={() => { setShowForm(false); setFormData(initialForm); setError('') }}>✕ Cancelar</button>
+            <button className="btn btn-success" onClick={usuarioEditando ? handleGuardarEspecialidad : handleCrear}>💾 Guardar</button>
+            <button className="btn btn-secondary" onClick={() => { setShowForm(false); setUsuarioEditando(null); setFormData(initialForm); setError('') }}>✕ Cancelar</button>
           </div>
         </div>
       )}
@@ -241,6 +288,7 @@ export default function GestionUsuarios() {
                 <th>Rol</th>
                 <th>Estado</th>
                 <th>Fecha Creacion</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -253,6 +301,7 @@ export default function GestionUsuarios() {
                   <td><span className={`rol-badge rol-${usuario.rol}`}>{usuario.rol_nombre}</span></td>
                   <td><span className={`status-badge ${usuario.activo ? 'activo' : 'inactivo'}`}>{usuario.activo ? 'Activo' : 'Inactivo'}</span></td>
                   <td>{usuario.fecha_creacion}</td>
+                  <td>{usuario.rol === '5' && <button className="btn-editar" onClick={() => handleEditarEspecialidad(usuario)}>{usuario.especialidad_id ? 'Cambiar profesión' : 'Asignar profesión'}</button>}</td>
                 </tr>
               ))}
             </tbody>
