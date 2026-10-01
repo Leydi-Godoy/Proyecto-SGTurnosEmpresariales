@@ -169,16 +169,26 @@ router.post('/', async (req, res) => {
     // Si el rol es 5 (Empleado), crear automáticamente registro en tabla empleados
     if (rolNumero === 5) {
       const codigoEmpleado = `EMP${empresaIdNumero}_${result.insertId}`;
-      await pool.query(
-        `INSERT IGNORE INTO empleados
-          (usuario_id, empresa_id, codigo_empleado, especialidad_id, estado, creado_en)
-         VALUES (?, ?, ?, ?, 'activo', NOW())`,
-        [result.insertId, empresaIdNumero, codigoEmpleado, especialidadIdNumero],
-      ).catch(err => {
-        console.warn('Advertencia al crear empleado:', err.message);
-        // No fallar si hay error al crear empleado, el trigger lo hará
-      });
+      const [employeeRows] = await pool.query(
+        `SELECT id FROM empleados
+         WHERE usuario_id = ? AND empresa_id = ?
+         ORDER BY id ASC LIMIT 1`,
+        [result.insertId, empresaIdNumero],
+      );
 
+      if (employeeRows[0]) {
+        await pool.query(
+          'UPDATE empleados SET especialidad_id = ? WHERE id = ?',
+          [especialidadIdNumero, employeeRows[0].id],
+        );
+      } else {
+        await pool.query(
+          `INSERT INTO empleados
+            (usuario_id, empresa_id, codigo_empleado, especialidad_id, estado, creado_en)
+           VALUES (?, ?, ?, ?, 'activo', NOW())`,
+          [result.insertId, empresaIdNumero, codigoEmpleado, especialidadIdNumero],
+        );
+      }
     }
 
     res.status(201).json({
