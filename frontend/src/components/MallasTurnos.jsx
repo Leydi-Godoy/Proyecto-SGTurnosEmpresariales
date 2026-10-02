@@ -38,6 +38,10 @@ export default function MallasTurnos() {
     empleadosExcluir: '',
   })
 
+  const [showModal, setShowModal] = useState(false)
+  const [modalData, setModalData] = useState(null)
+  const [modalLoading, setModalLoading] = useState(false)
+
   const token = localStorage.getItem('token')
 
   useEffect(() => {
@@ -75,6 +79,29 @@ export default function MallasTurnos() {
     } catch (err) {
       console.error('Error cargando configuraciones:', err)
       setError(err.message)
+    }
+  }
+
+  async function abrirDetalles(mallaId) {
+    try {
+      setModalLoading(true)
+      const response = await fetch(`/api/planificador/mallas/${mallaId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al cargar detalles')
+      }
+      
+      const data = await response.json()
+      setModalData(data)
+      setShowModal(true)
+    } catch (err) {
+      console.error('Error cargando detalles:', err)
+      setError('Error: ' + err.message)
+    } finally {
+      setModalLoading(false)
     }
   }
 
@@ -118,6 +145,7 @@ export default function MallasTurnos() {
 
     try {
       setGenerando(true)
+      const user = JSON.parse(localStorage.getItem('user') || '{}')
       const response = await fetch('/api/planificador/generar-malla', {
         method: 'POST',
         headers: {
@@ -125,11 +153,12 @@ export default function MallasTurnos() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          empresa_id: user.empresa_id || user.Id_usuario,
           configuracion_id: Number(generadorForm.configuracion_id),
           fecha_inicio: generadorForm.fecha_inicio,
           cantidad_semanas: Number(generadorForm.cantidad_semanas),
-          tipo_distribucion: generadorForm.tipo_distribucion,
-          pautas_seleccionadas: generadorForm.pautas_seleccionadas.length > 0 
+          tipoDistribucion: generadorForm.tipo_distribucion || 'equilibrada',
+          pautasSeleccionadas: generadorForm.pautas_seleccionadas?.length > 0 
             ? generadorForm.pautas_seleccionadas.map(Number)
             : undefined
         })
@@ -658,6 +687,7 @@ export default function MallasTurnos() {
                 <div className="malla-actions">
                   <button
                     className="action-btn view"
+                    onClick={() => abrirDetalles(malla.id)}
                     title="Ver detalles"
                   >
                     👁️ Detalles
@@ -675,6 +705,163 @@ export default function MallasTurnos() {
           </div>
         )}
       </div>
+
+      {/* MODAL DE DETALLES */}
+      {showModal && (
+        <div className="detail-modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="detail-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="detail-modal-header">
+              <h2>Detalles de Malla</h2>
+              <button className="detail-close-btn" onClick={() => setShowModal(false)}>✕</button>
+            </div>
+
+            {modalLoading ? (
+              <div className="detail-modal-body">
+                <p>Cargando detalles...</p>
+              </div>
+            ) : modalData ? (
+              <div className="detail-modal-body">
+                <div className="detail-modal-section">
+                  <h3>Configuración</h3>
+                  <div className="detail-modal-grid">
+                    <div className="detail-modal-item">
+                      <label>Nombre:</label>
+                      <p>{modalData.configuracion?.nombre}</p>
+                    </div>
+                    <div className="detail-modal-item">
+                      <label>Empresa:</label>
+                      <p>{modalData.configuracion?.empresa_nombre}</p>
+                    </div>
+                    <div className="detail-modal-item">
+                      <label>Empleados:</label>
+                      <p>{modalData.configuracion?.cantidad_empleados}</p>
+                    </div>
+                    <div className="detail-modal-item">
+                      <label>Horas/Semana:</label>
+                      <p>{modalData.configuracion?.horas_por_semana}h</p>
+                    </div>
+                    <div className="detail-modal-item">
+                      <label>Horas/Mes:</label>
+                      <p>{modalData.configuracion?.horas_por_mes}h</p>
+                    </div>
+                    <div className="detail-modal-item">
+                      <label>Distribución:</label>
+                      <p>{modalData.configuracion?.tipo_distribucion === 'equilibrada' ? '⚖️ Equilibrada' : '⚙️ Personalizada'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="detail-modal-section">
+                  <h3>Turnos Vinculados ({modalData.turnos?.length || 0})</h3>
+                  {modalData.turnos?.length > 0 ? (
+                    <table className="detail-modal-table">
+                      <thead>
+                        <tr>
+                          <th>Nombre</th>
+                          <th>Hora Inicio</th>
+                          <th>Hora Fin</th>
+                          <th>Duración (h)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {modalData.turnos.map((turno) => (
+                          <tr key={turno.id}>
+                            <td>{turno.nombre}</td>
+                            <td>{turno.hora_inicio}</td>
+                            <td>{turno.hora_fin}</td>
+                            <td>{turno.duracion_horas}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="detail-empty-text">No hay turnos vinculados</p>
+                  )}
+                </div>
+
+                <div className="detail-modal-section">
+                  <h3>Malla de Turnos por Empleado ({modalData.asignaciones?.total || 0})</h3>
+                  {modalData.asignaciones?.datos?.length > 0 ? (
+                    <div className="detail-calendar-container">
+                      {(() => {
+                        // Agrupar asignaciones por empleado
+                        const porEmpleado = {};
+                        const todasLasFechas = new Set();
+                        
+                        modalData.asignaciones.datos.forEach((asig) => {
+                          if (!porEmpleado[asig.empleado_id]) {
+                            porEmpleado[asig.empleado_id] = {
+                              nombre: asig.empleado_nombre,
+                              asignaciones: {}
+                            };
+                          }
+                          porEmpleado[asig.empleado_id].asignaciones[asig.fecha] = {
+                            turno: asig.turno_nombre,
+                            duracion: asig.duracion_horas
+                          };
+                          todasLasFechas.add(asig.fecha);
+                        });
+
+                        const fechasOrdenadas = Array.from(todasLasFechas).sort();
+                        const empleadosOrdenados = Object.values(porEmpleado);
+
+                        return (
+                          <table className="detail-roster-table">
+                            <thead>
+                              <tr>
+                                <th className="detail-employee-col">Empleado</th>
+                                {fechasOrdenadas.slice(0, 31).map((fecha) => (
+                                  <th key={fecha} className="detail-date-col" title={new Date(fecha).toLocaleDateString('es-CO')}>
+                                    {new Date(fecha).getDate()}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {empleadosOrdenados.map((emp, idx) => (
+                                <tr key={idx}>
+                                  <td className="detail-employee-name">{emp.nombre}</td>
+                                  {fechasOrdenadas.slice(0, 31).map((fecha) => {
+                                    const asig = emp.asignaciones[fecha];
+                                    const abreviatura = asig
+                                      ? `${asig.duracion}${asig.turno.includes('Noche') || asig.turno.includes('noche') ? 'N' : 'D'}`
+                                      : 'DES';
+                                    const clase = asig ? 'detail-assigned' : 'detail-rest';
+                                    
+                                    return (
+                                      <td 
+                                        key={`${idx}-${fecha}`} 
+                                        className={`detail-roster-cell ${clase}`}
+                                        title={asig ? asig.turno : 'Descanso'}
+                                      >
+                                        {abreviatura}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <p className="detail-empty-text">No hay asignaciones generadas</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="detail-modal-body">
+                <p>Error al cargar detalles</p>
+              </div>
+            )}
+
+            <div className="detail-modal-footer">
+              <button className="detail-btn-secondary" onClick={() => setShowModal(false)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

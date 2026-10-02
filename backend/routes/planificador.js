@@ -103,8 +103,8 @@ router.post('/generar-malla', authenticateToken, async (req, res) => {
       configuracion_id,
       fecha_inicio,
       cantidad_semanas,
-      tipo_distribucion = 'equilibrada',
-      pautas_seleccionadas
+      tipoDistribucion = 'equilibrada',
+      pautasSeleccionadas
     } = req.body;
 
     const userId = getUserId(req.auth);
@@ -189,8 +189,8 @@ router.post('/generar-malla', authenticateToken, async (req, res) => {
       fechaInicio: fecha_inicio,
       cantidadSemanas: cantidad_semanas,
       usuarioId: userId,
-      tipoDistribucion: tipo_distribucion,
-      pautasSeleccionadas: pautas_seleccionadas
+      tipoDistribucion: tipoDistribucion,
+      pautasSeleccionadas: pautasSeleccionadas
     });
 
     // ✅ REGISTRAR EN AUDITORÍA
@@ -268,10 +268,9 @@ router.get('/mallas', authenticateToken, async (req, res) => {
          cm.activo,
          cm.creado_en
        FROM configuraciones_malla cm
-      FROM configuraciones_malla cm
-      LEFT JOIN configuraciones_malla_turnos cmt ON cmt.configuracion_id = cm.id
-      LEFT JOIN plantillas_turno pt ON pt.id = cmt.plantilla_id AND pt.empresa_id = cm.empresa_id
-      LEFT JOIN instancias_turno it ON it.plantilla_id = pt.id
+       LEFT JOIN configuraciones_malla_turnos cmt ON cmt.configuracion_id = cm.id
+       LEFT JOIN plantillas_turno pt ON pt.id = cmt.plantilla_id AND pt.empresa_id = cm.empresa_id
+       LEFT JOIN instancias_turno it ON it.plantilla_id = pt.id
        WHERE cm.empresa_id = ?
        GROUP BY cm.id
        ORDER BY cm.creado_en DESC`,
@@ -341,29 +340,38 @@ router.get('/mallas/:id', authenticateToken, async (req, res) => {
       [id]
     );
 
-    // Obtener instancias generadas
-    const [instancias] = await pool.query(
-      `SELECT it.id, it.fecha, it.inicio_fecha_hora, it.fin_fecha_hora, 
-              pt.nombre as turno_nombre, COUNT(DISTINCT at.id) as asignaciones
-       FROM instancias_turno it
-       JOIN plantillas_turno pt ON it.plantilla_id = pt.id
-       LEFT JOIN asignaciones_turno at ON it.id = at.instancia_turno_id
-       WHERE it.plantilla_id IN (
-         SELECT cmt.plantilla_id FROM configuraciones_malla_turnos cmt
-         WHERE cmt.configuracion_id = ?
-       )
-       GROUP BY it.id
-       ORDER BY it.fecha ASC
-       LIMIT 100`,
+    // Obtener instancias con asignaciones y empleados
+    const [asignaciones] = await pool.query(
+      `SELECT 
+         at.id as asignacion_id,
+         at.empleado_id,
+         COALESCE(
+           CONCAT(u.primer_nombre, ' ', u.primer_apellido),
+           u.correo,
+           'Empleado'
+         ) as empleado_nombre,
+         DATE(it.fecha) as fecha,
+         it.id as instancia_id,
+         pt.nombre as turno_nombre,
+         cmt.duracion_horas
+       FROM asignaciones_turno at
+       LEFT JOIN empleados e ON at.empleado_id = e.id
+       LEFT JOIN usuarios u ON e.usuario_id = u.id
+       LEFT JOIN instancias_turno it ON at.instancia_turno_id = it.id
+       LEFT JOIN plantillas_turno pt ON it.plantilla_id = pt.id
+       LEFT JOIN configuraciones_malla_turnos cmt ON pt.id = cmt.plantilla_id AND cmt.configuracion_id = ?
+       WHERE pt.id IS NOT NULL
+       ORDER BY empleado_nombre ASC, it.fecha ASC
+       LIMIT 1000`,
       [id]
     );
 
     return res.json({
       configuracion: config,
       turnos,
-      instancias: {
-        total: instancias.length,
-        datos: instancias
+      asignaciones: {
+        total: asignaciones.length,
+        datos: asignaciones
       }
     });
 
