@@ -4,6 +4,8 @@ import './MallasTurnos.css'
 export default function MallasTurnos() {
   const [mallas, setMallas] = useState([])
   const [configuraciones, setConfiguraciones] = useState([])
+  const [configuracionSeleccionada, setConfiguracionSeleccionada] = useState(null)
+  const [cargandoConfiguracion, setCargandoConfiguracion] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [showGenerador, setShowGenerador] = useState(false)
@@ -37,7 +39,6 @@ export default function MallasTurnos() {
   })
 
   const token = localStorage.getItem('token')
-  const empresaId = localStorage.getItem('empresaId')
 
   useEffect(() => {
     loadMallas()
@@ -47,7 +48,7 @@ export default function MallasTurnos() {
   async function loadMallas() {
     try {
       setLoading(true)
-      const response = await fetch(`http://localhost:3001/api/planificador/mallas?empresa_id=${empresaId}`, {
+      const response = await fetch('/api/planificador/mallas', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       
@@ -65,16 +66,43 @@ export default function MallasTurnos() {
 
   async function loadConfiguraciones() {
     try {
-      const response = await fetch(`http://localhost:3001/api/configuraciones-malla?empresa_id=${empresaId}`, {
+      const response = await fetch('/api/configuraciones-malla', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setConfiguraciones(data.configuraciones || [])
-      }
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'No se pudieron cargar las configuraciones')
+      setConfiguraciones((data.configuraciones || []).filter(config => Number(config.activo) === 1))
     } catch (err) {
       console.error('Error cargando configuraciones:', err)
+      setError(err.message)
+    }
+  }
+
+  async function seleccionarConfiguracion(id) {
+    const configuracionBase = configuraciones.find(config => String(config.id) === id)
+    setGeneradorForm(current => ({
+      ...current,
+      configuracion_id: id,
+      tipo_distribucion: configuracionBase?.tipo_distribucion || current.tipo_distribucion
+    }))
+    setConfiguracionSeleccionada(configuracionBase || null)
+    setError('')
+
+    if (!id) return
+
+    try {
+      setCargandoConfiguracion(true)
+      const response = await fetch(`/api/configuraciones-malla/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'No se pudo consultar la configuración')
+      setConfiguracionSeleccionada(data)
+    } catch (err) {
+      console.error('Error consultando configuración:', err)
+      setError(err.message)
+    } finally {
+      setCargandoConfiguracion(false)
     }
   }
 
@@ -90,14 +118,13 @@ export default function MallasTurnos() {
 
     try {
       setGenerando(true)
-      const response = await fetch('http://localhost:3001/api/planificador/generar-malla', {
+      const response = await fetch('/api/planificador/generar-malla', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          empresa_id: Number(empresaId),
           configuracion_id: Number(generadorForm.configuracion_id),
           fecha_inicio: generadorForm.fecha_inicio,
           cantidad_semanas: Number(generadorForm.cantidad_semanas),
@@ -110,11 +137,15 @@ export default function MallasTurnos() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Error al generar malla')
+        const detalle = typeof errorData.detalle === 'string'
+          ? errorData.detalle
+          : errorData.detalle ? JSON.stringify(errorData.detalle) : ''
+        throw new Error([errorData.error, detalle].filter(Boolean).join(': ') || 'Error al generar malla')
       }
 
       const data = await response.json()
-      setSuccess(`✓ Malla generada exitosamente con ${data.datos.totalInstancias} instancias de turnos`)
+      const advertencias = data.datos?.resumenLegal?.advertencias || []
+      setSuccess(`✓ Malla generada exitosamente con ${data.datos.totalInstancias} instancias de turnos${advertencias.length ? `. Atención: ${advertencias.join(' ')}` : ''}`)
       setShowGenerador(false)
       setGeneradorForm({
         configuracion_id: '',
@@ -123,6 +154,7 @@ export default function MallasTurnos() {
         tipo_distribucion: 'equilibrada',
         pautas_seleccionadas: [],
       })
+      setConfiguracionSeleccionada(null)
       
       // Recargar mallas
       await loadMallas()
@@ -187,7 +219,7 @@ export default function MallasTurnos() {
 
     try {
       setAsignando(true)
-      const response = await fetch('http://localhost:3001/api/planificador/asignar-automaticamente', {
+      const response = await fetch('/api/planificador/asignar-automaticamente', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -293,7 +325,7 @@ export default function MallasTurnos() {
                   id="config"
                   required
                   value={generadorForm.configuracion_id}
-                  onChange={(e) => setGeneradorForm({ ...generadorForm, configuracion_id: e.target.value })}
+                  onChange={(e) => seleccionarConfiguracion(e.target.value)}
                 >
                   <option value="">-- Selecciona una configuración --</option>
                   {configuraciones.map((config) => (
@@ -315,6 +347,34 @@ export default function MallasTurnos() {
                 />
               </div>
             </div>
+
+            {configuracionSeleccionada && (
+              <section className="config-preview" aria-live="polite">
+                <div className="config-preview-heading">
+                  <h4>Verificación de configuración</h4>
+                  {cargandoConfiguracion && <span>Actualizando detalle...</span>}
+                </div>
+                {configuracionSeleccionada.descripcion && <p className="config-preview-description">{configuracionSeleccionada.descripcion}</p>}
+                <div className="config-preview-grid">
+                  <div><span>Empleados requeridos</span><strong>{configuracionSeleccionada.cantidad_empleados}</strong></div>
+                  <div><span>Turnos por empleado/mes</span><strong>{configuracionSeleccionada.turnos_mensuales_empleado}</strong></div>
+                  <div><span>Horas por semana</span><strong>{configuracionSeleccionada.horas_por_semana}</strong></div>
+                  <div><span>Horas por mes</span><strong>{configuracionSeleccionada.horas_por_mes}</strong></div>
+                  <div><span>Días laborales/semana</span><strong>{configuracionSeleccionada.dias_laborales_por_semana}</strong></div>
+                  <div><span>Distribución configurada</span><strong>{configuracionSeleccionada.tipo_distribucion || 'equilibrada'}</strong></div>
+                </div>
+                {configuracionSeleccionada.turnos?.length > 0 && (
+                  <div className="config-preview-shifts">
+                    <span>Turnos incluidos</span>
+                    <ul>
+                      {configuracionSeleccionada.turnos.map(turno => (
+                        <li key={turno.id || turno.plantilla_id}>{turno.nombre} · {turno.duracion_horas} h</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </section>
+            )}
 
             <div className="form-row">
               <div className="form-group">
@@ -347,7 +407,7 @@ export default function MallasTurnos() {
               <button 
                 className="button-primary" 
                 type="submit"
-                disabled={generando}
+                disabled={generando || cargandoConfiguracion}
               >
                 {generando ? '⏳ Generando...' : '🚀 Generar Malla'}
               </button>
@@ -356,6 +416,7 @@ export default function MallasTurnos() {
                 type="button"
                 onClick={() => {
                   setShowGenerador(false)
+                  setConfiguracionSeleccionada(null)
                   setGeneradorForm({
                     configuracion_id: '',
                     fecha_inicio: '',

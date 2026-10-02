@@ -169,16 +169,26 @@ router.post('/', async (req, res) => {
     // Si el rol es 5 (Empleado), crear automáticamente registro en tabla empleados
     if (rolNumero === 5) {
       const codigoEmpleado = `EMP${empresaIdNumero}_${result.insertId}`;
-      await pool.query(
-        `INSERT IGNORE INTO empleados
-          (usuario_id, empresa_id, codigo_empleado, especialidad_id, estado, creado_en)
-         VALUES (?, ?, ?, ?, 'activo', NOW())`,
-        [result.insertId, empresaIdNumero, codigoEmpleado, especialidadIdNumero],
-      ).catch(err => {
-        console.warn('Advertencia al crear empleado:', err.message);
-        // No fallar si hay error al crear empleado, el trigger lo hará
-      });
+      const [employeeRows] = await pool.query(
+        `SELECT id FROM empleados
+         WHERE usuario_id = ? AND empresa_id = ?
+         ORDER BY id ASC LIMIT 1`,
+        [result.insertId, empresaIdNumero],
+      );
 
+      if (employeeRows[0]) {
+        await pool.query(
+          'UPDATE empleados SET especialidad_id = ? WHERE id = ?',
+          [especialidadIdNumero, employeeRows[0].id],
+        );
+      } else {
+        await pool.query(
+          `INSERT INTO empleados
+            (usuario_id, empresa_id, codigo_empleado, especialidad_id, estado, creado_en)
+           VALUES (?, ?, ?, ?, 'activo', NOW())`,
+          [result.insertId, empresaIdNumero, codigoEmpleado, especialidadIdNumero],
+        );
+      }
     }
 
     res.status(201).json({
@@ -196,6 +206,84 @@ router.post('/', async (req, res) => {
     if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'email already exists' });
     console.error('user create error', error);
     res.status(500).json({ error: 'could not create user' });
+  }
+});
+
+router.patch('/:id/especialidad', async (req, res) => {
+  const usuarioId = Number(req.params.id);
+  const empresaId = isCompanyAdmin(req) ? Number(req.auth.empresa_id) : Number(req.body?.empresa_id);
+  const especialidadId = Number(req.body?.especialidad_id);
+
+  if (!Number.isSafeInteger(usuarioId) || usuarioId < 1 || !Number.isSafeInteger(empresaId) || empresaId < 1) {
+    return res.status(400).json({ error: 'usuario y empresa son requeridos' });
+  }
+  if (!Number.isSafeInteger(especialidadId) || especialidadId < 1) {
+    return res.status(400).json({ error: 'especialidad_id es requerido' });
+  }
+
+  try {
+    const [userRows] = await pool.query(
+      'SELECT id FROM usuarios WHERE id = ? AND empresa_id = ? AND id_rol = 5 LIMIT 1',
+      [usuarioId, empresaId],
+    );
+    if (!userRows[0]) return res.status(404).json({ error: 'empleado no encontrado para esta empresa' });
+
+    const [specialtyRows] = await pool.query(
+      `SELECT id, empresa_id, codigo, nombre, descripcion
+       FROM especialidades
+       WHERE id = ? AND (empresa_id = ? OR empresa_id IS NULL)
+       LIMIT 1`,
+      [especialidadId, empresaId],
+    );
+    const especialidad = specialtyRows[0];
+    if (!especialidad) return res.status(400).json({ error: 'la especialidad no pertenece a esta empresa' });
+
+    let especialidadEmpresaId = Number(especialidad.id);
+    if (Number(especialidad.empresa_id) !== empresaId) {
+      const [companyRows] = await pool.query(
+        `SELECT id FROM especialidades
+         WHERE empresa_id = ? AND (codigo = ? OR LOWER(nombre) = LOWER(?))
+         LIMIT 1`,
+        [empresaId, especialidad.codigo, especialidad.nombre],
+      );
+      if (companyRows[0]) {
+        especialidadEmpresaId = Number(companyRows[0].id);
+      } else {
+        const [result] = await pool.query(
+          `INSERT INTO especialidades (empresa_id, codigo, nombre, descripcion)
+           VALUES (?, ?, ?, ?)`,
+          [empresaId, especialidad.codigo, especialidad.nombre, especialidad.descripcion || null],
+        );
+        especialidadEmpresaId = Number(result.insertId);
+      }
+    }
+
+    const [employeeRows] = await pool.query(
+      `SELECT id FROM empleados
+       WHERE usuario_id = ? AND empresa_id = ?
+       ORDER BY id ASC LIMIT 1`,
+      [usuarioId, empresaId],
+    );
+
+    if (employeeRows[0]) {
+      await pool.query('UPDATE empleados SET especialidad_id = ? WHERE id = ?', [especialidadEmpresaId, employeeRows[0].id]);
+    } else {
+      await pool.query(
+        `INSERT INTO empleados (usuario_id, empresa_id, codigo_empleado, especialidad_id, estado, creado_en)
+         VALUES (?, ?, ?, ?, 'activo', NOW())`,
+        [usuarioId, empresaId, `EMP${empresaId}_${usuarioId}`, especialidadEmpresaId],
+      );
+    }
+
+    return res.json({
+      usuario_id: usuarioId,
+      especialidad_id: especialidadEmpresaId,
+      especialidad_nombre: especialidad.nombre,
+    });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'el empleado ya tiene un registro asociado' });
+    console.error('user specialty update error', error);
+    return res.status(500).json({ error: 'no se pudo asignar la especialidad' });
   }
 });
 

@@ -38,16 +38,33 @@ async function logAction(empresa_id, usuario_id, accion, tabla_objetivo, id_obje
 /**
  * Check if user is Planificador (role 4) or higher
  */
+function getUserRole(auth) {
+  return auth?.Id_rol ?? auth?.role ?? auth?.rol;
+}
+
+function getUserId(auth) {
+  return auth?.Id_usuario ?? auth?.id;
+}
+
+function normalizeRole(userRole) {
+  return String(userRole ?? '').trim().toLowerCase();
+}
+
+function isSuperAdmin(userRole) {
+  return ['1', 'super_admin', 'supad1'].includes(normalizeRole(userRole));
+}
+
 function isPlanificador(userRole) {
-  return userRole === 1 || userRole === 2 || userRole === 4; // Super Admin, Admin Empresa, Planificador
+  return ['1', '2', '3', '4', 'super_admin', 'supad1', 'admin_empresa', 'ademp2', 'planificador', 'plani3', 'supervisor', 'supvi4']
+    .includes(normalizeRole(userRole));
 }
 
 /**
  * Check company access
  */
 function checkCompanyAccess(userRole, userCompany, requestedCompany) {
-  if (userRole === 1) return true; // Super Admin
-  return userCompany === requestedCompany;
+  if (isSuperAdmin(userRole)) return true;
+  return Number(userCompany) > 0 && Number(userCompany) === Number(requestedCompany);
 }
 
 // ============================================================================
@@ -82,7 +99,7 @@ function checkCompanyAccess(userRole, userCompany, requestedCompany) {
 router.post('/generar-malla', authenticateToken, async (req, res) => {
   try {
     const {
-      empresa_id,
+      empresa_id: requestedEmpresaId,
       configuracion_id,
       fecha_inicio,
       cantidad_semanas,
@@ -90,9 +107,12 @@ router.post('/generar-malla', authenticateToken, async (req, res) => {
       pautas_seleccionadas
     } = req.body;
 
-    const userId = req.auth.Id_usuario;
-    const userRole = req.auth.Id_rol;
+    const userId = getUserId(req.auth);
+    const userRole = getUserRole(req.auth);
     const userCompany = req.auth.empresa_id;
+    const empresa_id = isSuperAdmin(userRole)
+      ? Number(requestedEmpresaId || userCompany)
+      : userCompany;
 
     // ✅ VALIDACIÓN 1: Permisos de rol
     if (!isPlanificador(userRole)) {
@@ -133,7 +153,20 @@ router.post('/generar-malla', authenticateToken, async (req, res) => {
       });
     }
 
-    // ✅ VALIDACIÓN 5: Verificar que haya empleados en la empresa
+    const [turnosConfigurados] = await pool.query(
+      `SELECT COUNT(*) AS cantidad
+       FROM configuraciones_malla_turnos cmt
+       JOIN plantillas_turno pt ON pt.id = cmt.plantilla_id
+       WHERE cmt.configuracion_id = ? AND pt.empresa_id = ? AND pt.activo = 1`,
+      [configuracion_id, empresa_id]
+    );
+    if (turnosConfigurados[0].cantidad === 0) {
+      return res.status(400).json({
+        error: 'La configuración no tiene turnos activos asociados. El Admin Empresa debe agregar al menos un turno a la malla.'
+      });
+    }
+
+    // ✅ VALIDACIÓN 6: Verificar que haya empleados en la empresa
     const [empleados] = await pool.query(
       'SELECT COUNT(*) as cantidad FROM empleados WHERE empresa_id = ? AND estado = "activo"',
       [empresa_id]
@@ -205,9 +238,11 @@ router.post('/generar-malla', authenticateToken, async (req, res) => {
  */
 router.get('/mallas', authenticateToken, async (req, res) => {
   try {
-    const empresa_id = req.query.empresa_id || req.auth.empresa_id;
-    const userRole = req.auth.Id_rol;
+    const userRole = getUserRole(req.auth);
     const userCompany = req.auth.empresa_id;
+    const empresa_id = isSuperAdmin(userRole)
+      ? Number(req.query.empresa_id || userCompany)
+      : userCompany;
 
     // ✅ VALIDACIÓN: Permisos y acceso
     if (!isPlanificador(userRole)) {
@@ -233,7 +268,10 @@ router.get('/mallas', authenticateToken, async (req, res) => {
          cm.activo,
          cm.creado_en
        FROM configuraciones_malla cm
-       LEFT JOIN instancias_turno it ON cm.id = it.plantilla_id
+      FROM configuraciones_malla cm
+      LEFT JOIN configuraciones_malla_turnos cmt ON cmt.configuracion_id = cm.id
+      LEFT JOIN plantillas_turno pt ON pt.id = cmt.plantilla_id AND pt.empresa_id = cm.empresa_id
+      LEFT JOIN instancias_turno it ON it.plantilla_id = pt.id
        WHERE cm.empresa_id = ?
        GROUP BY cm.id
        ORDER BY cm.creado_en DESC`,
@@ -264,7 +302,7 @@ router.get('/mallas', authenticateToken, async (req, res) => {
 router.get('/mallas/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userRole = req.auth.Id_rol;
+    const userRole = getUserRole(req.auth);
     const userCompany = req.auth.empresa_id;
 
     // ✅ VALIDACIÓN: Permisos
@@ -273,13 +311,14 @@ router.get('/mallas/:id', authenticateToken, async (req, res) => {
     }
 
     // Obtener configuración
-    const [configs] = await pool.query(
-      `SELECT cm.*, e.nombre as empresa_nombre
-       FROM configuraciones_malla cm
-       JOIN empresas e ON cm.empresa_id = e.id
-       WHERE cm.id = ?`,
-      [id]
-    );
+    const configQuery = isSuperAdmin(userRole)
+      ? `SELECT cm.*, e.nombre AS empresa_nombre
+         FROM configuraciones_malla cm JOIN empresas e ON cm.empresa_id = e.id
+         WHERE cm.id = ?`
+      : `SELECT cm.*, e.nombre AS empresa_nombre
+         FROM configuraciones_malla cm JOIN empresas e ON cm.empresa_id = e.id
+         WHERE cm.id = ? AND cm.empresa_id = ?`;
+    const [configs] = await pool.query(configQuery, isSuperAdmin(userRole) ? [id] : [id, userCompany]);
 
     if (configs.length === 0) {
       return res.status(404).json({ error: 'Malla no encontrada' });
@@ -309,7 +348,10 @@ router.get('/mallas/:id', authenticateToken, async (req, res) => {
        FROM instancias_turno it
        JOIN plantillas_turno pt ON it.plantilla_id = pt.id
        LEFT JOIN asignaciones_turno at ON it.id = at.instancia_turno_id
-       WHERE it.plantilla_id = ?
+       WHERE it.plantilla_id IN (
+         SELECT cmt.plantilla_id FROM configuraciones_malla_turnos cmt
+         WHERE cmt.configuracion_id = ?
+       )
        GROUP BY it.id
        ORDER BY it.fecha ASC
        LIMIT 100`,
@@ -518,8 +560,8 @@ router.get('/cobertura', authenticateToken, async (req, res) => {
 router.post('/asignar-automaticamente', authenticateToken, async (req, res) => {
   try {
     const { malla_id, criterios = {} } = req.body;
-    const userId = req.auth.Id_usuario;
-    const userRole = req.auth.Id_rol;
+    const userId = getUserId(req.auth);
+    const userRole = getUserRole(req.auth);
     const empresaId = req.auth.empresa_id; // SOLO del token, NO del body
 
     if (!isPlanificador(userRole)) {

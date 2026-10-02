@@ -42,8 +42,67 @@ async function logAction(empresa_id, usuario_id, accion, tabla, id_objetivo, det
  * @returns {boolean} true si es Super Admin (1) o Admin Empresa (2)
  */
 function isAdminEmpresa(userRole) {
-  return userRole === 1 || userRole === 2; // Super Admin o Admin Empresa
+  return ['1', '2', 'super_admin', 'supad1', 'admin_empresa', 'ademp2'].includes(String(userRole).trim().toLowerCase());
 }
+
+function isSuperAdmin(userRole) {
+  return ['1', 'super_admin', 'supad1'].includes(String(userRole).trim().toLowerCase());
+}
+
+function isPlanificador(userRole) {
+  return ['3', 'plani3', 'planificador'].includes(String(userRole).trim().toLowerCase());
+}
+
+function canReadConfiguracionesMalla(userRole) {
+  return isAdminEmpresa(userRole) || isPlanificador(userRole);
+}
+
+function getUserRole(auth) {
+  return auth.Id_rol ?? auth.role;
+}
+
+function getUserId(auth) {
+  return auth.Id_usuario ?? auth.id;
+}
+
+async function validarTurnosEmpresa(empresaId, turnos) {
+  if (!Array.isArray(turnos) || turnos.length === 0) {
+    return { error: 'Agrega al menos un turno a la configuración' };
+  }
+
+  const normalizados = [];
+  const ids = new Set();
+  for (const turno of turnos) {
+    const plantillaId = Number(turno.plantilla_id);
+    const orden = Number(turno.orden);
+    const duracionHoras = Number(turno.duracion_horas);
+    if (!Number.isInteger(plantillaId) || plantillaId <= 0 || ids.has(plantillaId)
+      || !Number.isInteger(orden) || orden < 1
+      || !Number.isInteger(duracionHoras) || duracionHoras < 1 || duracionHoras > 24) {
+      return { error: 'Cada turno debe tener una plantilla distinta, orden y duración válida entre 1 y 24 horas' };
+    }
+    ids.add(plantillaId);
+    normalizados.push({ plantilla_id: plantillaId, orden, duracion_horas: duracionHoras });
+  }
+
+  const [plantillas] = await pool.query(
+    'SELECT id FROM plantillas_turno WHERE empresa_id = ? AND activo = 1 AND id IN (?)',
+    [empresaId, [...ids]]
+  );
+  if (plantillas.length !== ids.size) {
+    return { error: 'Una o más plantillas no existen, están inactivas o pertenecen a otra empresa' };
+  }
+
+  return { turnos: normalizados };
+}
+
+const CONFIGURACION_MALLA_CON_USUARIOS = `
+  SELECT cm.*,
+          COALESCE(NULLIF(TRIM(CONCAT_WS(' ', actualizador.primer_nombre, actualizador.segundo_nombre, actualizador.primer_apellido, actualizador.segundo_apellido)), ''), actualizador.correo) AS actualizado_por_nombre,
+          COALESCE(NULLIF(TRIM(CONCAT_WS(' ', creador.primer_nombre, creador.segundo_nombre, creador.primer_apellido, creador.segundo_apellido)), ''), creador.correo) AS creado_por_nombre
+  FROM configuraciones_malla cm
+        LEFT JOIN usuarios actualizador ON actualizador.id = cm.actualizado_por AND actualizador.empresa_id = cm.empresa_id
+        LEFT JOIN usuarios creador ON creador.id = cm.creado_por AND creador.empresa_id = cm.empresa_id`;
 
 /**
  * ENDPOINT 1: GET /api/configuraciones-malla
@@ -64,17 +123,18 @@ function isAdminEmpresa(userRole) {
  */
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const empresaId = req.query.empresa_id || req.auth.empresa_id;
-    const userRole = req.auth.Id_rol;
-    const userCompany = req.auth.empresa_id;
-
-    // Validación: Solo admin de empresa puede ver configuraciones
-    if (!isAdminEmpresa(userRole) && userCompany !== Number(empresaId)) {
+    const userRole = getUserRole(req.auth);
+    if (!canReadConfiguracionesMalla(userRole)) {
       return res.status(403).json({ error: 'Acceso denegado' });
     }
+    const empresaId = isSuperAdmin(userRole)
+      ? Number(req.query.empresa_id || req.auth.empresa_id)
+      : req.auth.empresa_id;
+    if (!empresaId) return res.status(400).json({ error: 'No se pudo determinar la empresa' });
 
     const [configuraciones] = await pool.query(
-      'SELECT id, nombre, cantidad_empleados, horas_por_semana, horas_por_mes, turnos_mensuales_empleado, activo, creado_en FROM configuraciones_malla WHERE empresa_id = ? ORDER BY creado_en DESC',
+      `${CONFIGURACION_MALLA_CON_USUARIOS}
+       WHERE cm.empresa_id = ? ORDER BY cm.creado_en DESC`,
       [empresaId]
     );
 
@@ -103,17 +163,18 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userRole = req.user.Id_rol;
+    const userRole = getUserRole(req.auth);
 
-    if (!isAdminEmpresa(userRole)) {
+    if (!canReadConfiguracionesMalla(userRole)) {
       return res.status(403).json({ error: 'Acceso denegado' });
     }
 
     // Obtener configuración
-    const [configs] = await pool.query(
-      'SELECT * FROM configuraciones_malla WHERE id = ?',
-      [id]
-    );
+    const query = isSuperAdmin(userRole)
+      ? `${CONFIGURACION_MALLA_CON_USUARIOS} WHERE cm.id = ?`
+      : `${CONFIGURACION_MALLA_CON_USUARIOS} WHERE cm.id = ? AND cm.empresa_id = ?`;
+    const params = isSuperAdmin(userRole) ? [id] : [id, req.auth.empresa_id];
+    const [configs] = await pool.query(query, params);
 
     if (configs.length === 0) {
       return res.status(404).json({ error: 'Configuración no encontrada' });
@@ -142,50 +203,56 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // 3. POST - Crear configuración de malla
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { empresa_id, nombre, cantidad_empleados, horas_por_semana, horas_por_mes, dias_laborales_por_semana, turnos_mensuales_empleado, tipo_distribucion, descripcion, turnos } = req.body;
-    const userId = req.auth.Id_usuario;
-    const userRole = req.auth.Id_rol;
+    const { nombre, cantidad_empleados, horas_por_semana, horas_por_mes, dias_laborales_por_semana, turnos_mensuales_empleado, tipo_distribucion, descripcion, turnos } = req.body;
+    const empresaId = req.auth.empresa_id;
+    const userId = getUserId(req.auth);
+    const userRole = getUserRole(req.auth);
 
     if (!isAdminEmpresa(userRole)) {
       return res.status(403).json({ error: 'Acceso denegado: solo Admin Empresa o Super Admin pueden crear configuraciones' });
     }
 
-    if (!empresa_id || !nombre || !cantidad_empleados || !turnos_mensuales_empleado) {
+    if (!empresaId || !nombre || !cantidad_empleados || !turnos_mensuales_empleado) {
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
 
-    // Crear configuración
-    const [result] = await pool.query(
-      `INSERT INTO configuraciones_malla (empresa_id, nombre, cantidad_empleados, horas_por_semana, horas_por_mes, dias_laborales_por_semana, turnos_mensuales_empleado, tipo_distribucion, descripcion)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [empresa_id, nombre, cantidad_empleados, horas_por_semana || 42, horas_por_mes || 182, dias_laborales_por_semana || 5, turnos_mensuales_empleado, tipo_distribucion || 'equilibrada', descripcion]
-    );
+    const validacionTurnos = await validarTurnosEmpresa(empresaId, turnos);
+    if (validacionTurnos.error) return res.status(400).json({ error: validacionTurnos.error });
 
-    const configId = result.insertId;
-
-    // Agregar turnos si se proporcionan
-    if (turnos && Array.isArray(turnos) && turnos.length > 0) {
-      for (const turno of turnos) {
-        await pool.query(
+    const connection = await pool.getConnection();
+    let configId;
+    try {
+      await connection.beginTransaction();
+      const [result] = await connection.query(
+        `INSERT INTO configuraciones_malla (empresa_id, nombre, descripcion, cantidad_empleados, horas_por_semana, horas_por_mes, dias_laborales_por_semana, turnos_mensuales_empleado, tipo_distribucion, creado_por)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [empresaId, nombre, descripcion || null, cantidad_empleados, horas_por_semana || 42, horas_por_mes || 182, dias_laborales_por_semana || 6, turnos_mensuales_empleado, tipo_distribucion || 'equilibrada', userId]
+      );
+      configId = result.insertId;
+      for (const turno of validacionTurnos.turnos) {
+        await connection.query(
           `INSERT INTO configuraciones_malla_turnos (configuracion_id, plantilla_id, orden, duracion_horas)
            VALUES (?, ?, ?, ?)`,
-          [configId, turno.plantilla_id, turno.orden || 1, turno.duracion_horas]
+          [configId, turno.plantilla_id, turno.orden, turno.duracion_horas]
         );
       }
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
 
-    await logAction(empresa_id, userId, 'crear_configuracion_malla', 'configuraciones_malla', configId, {
+    await logAction(empresaId, userId, 'crear_configuracion_malla', 'configuraciones_malla', configId, {
       nombre, cantidad_empleados, turnos_mensuales_empleado
     });
 
-    res.status(201).json({
-      id: configId,
-      empresa_id,
-      nombre,
-      cantidad_empleados,
-      turnos_mensuales_empleado,
-      message: 'Configuración creada exitosamente'
-    });
+    const [savedConfigs] = await pool.query(
+      `${CONFIGURACION_MALLA_CON_USUARIOS} WHERE cm.id = ? AND cm.empresa_id = ?`,
+      [configId, empresaId]
+    );
+    res.status(201).json({ configuracion: savedConfigs[0], message: 'Configuración creada exitosamente' });
   } catch (error) {
     console.error('Error creating configuración:', error);
     res.status(500).json({ error: 'Error al crear configuración' });
@@ -197,59 +264,76 @@ router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, cantidad_empleados, horas_por_semana, horas_por_mes, dias_laborales_por_semana, turnos_mensuales_empleado, tipo_distribucion, descripcion, turnos } = req.body;
-    const userId = req.auth.Id_usuario;
-    const userRole = req.auth.Id_rol;
+    const userId = getUserId(req.auth);
+    const userRole = getUserRole(req.auth);
 
     if (!isAdminEmpresa(userRole)) {
       return res.status(403).json({ error: 'Acceso denegado' });
     }
 
     // Obtener configuración actual
-    const [configs] = await pool.query('SELECT * FROM configuraciones_malla WHERE id = ?', [id]);
+    const configQuery = isSuperAdmin(userRole)
+      ? 'SELECT * FROM configuraciones_malla WHERE id = ?'
+      : 'SELECT * FROM configuraciones_malla WHERE id = ? AND empresa_id = ?';
+    const configParams = isSuperAdmin(userRole) ? [id] : [id, req.auth.empresa_id];
+    const [configs] = await pool.query(configQuery, configParams);
     if (configs.length === 0) {
       return res.status(404).json({ error: 'Configuración no encontrada' });
     }
 
     const config = configs[0];
 
+    const validacionTurnos = turnos === undefined
+      ? null
+      : await validarTurnosEmpresa(config.empresa_id, turnos);
+    if (validacionTurnos?.error) return res.status(400).json({ error: validacionTurnos.error });
+
     // Actualizar
     const updateFields = [];
     const updateValues = [];
     
-    if (nombre) { updateFields.push('nombre = ?'); updateValues.push(nombre); }
-    if (cantidad_empleados) { updateFields.push('cantidad_empleados = ?'); updateValues.push(cantidad_empleados); }
-    if (horas_por_semana) { updateFields.push('horas_por_semana = ?'); updateValues.push(horas_por_semana); }
-    if (horas_por_mes) { updateFields.push('horas_por_mes = ?'); updateValues.push(horas_por_mes); }
-    if (dias_laborales_por_semana) { updateFields.push('dias_laborales_por_semana = ?'); updateValues.push(dias_laborales_por_semana); }
-    if (turnos_mensuales_empleado) { updateFields.push('turnos_mensuales_empleado = ?'); updateValues.push(turnos_mensuales_empleado); }
-    if (tipo_distribucion) { updateFields.push('tipo_distribucion = ?'); updateValues.push(tipo_distribucion); }
+    if (nombre !== undefined) { updateFields.push('nombre = ?'); updateValues.push(nombre); }
+    if (cantidad_empleados !== undefined) { updateFields.push('cantidad_empleados = ?'); updateValues.push(cantidad_empleados); }
+    if (horas_por_semana !== undefined) { updateFields.push('horas_por_semana = ?'); updateValues.push(horas_por_semana); }
+    if (horas_por_mes !== undefined) { updateFields.push('horas_por_mes = ?'); updateValues.push(horas_por_mes); }
+    if (dias_laborales_por_semana !== undefined) { updateFields.push('dias_laborales_por_semana = ?'); updateValues.push(dias_laborales_por_semana); }
+    if (turnos_mensuales_empleado !== undefined) { updateFields.push('turnos_mensuales_empleado = ?'); updateValues.push(turnos_mensuales_empleado); }
+    if (tipo_distribucion !== undefined) { updateFields.push('tipo_distribucion = ?'); updateValues.push(tipo_distribucion); }
     if (descripcion !== undefined) { updateFields.push('descripcion = ?'); updateValues.push(descripcion); }
 
-    if (updateFields.length > 0) {
-      updateValues.push(id);
-      await pool.query(`UPDATE configuraciones_malla SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
-    }
-
-    // Actualizar turnos si se proporcionan
-    if (turnos && Array.isArray(turnos)) {
-      // Eliminar turnos existentes
-      await pool.query('DELETE FROM configuraciones_malla_turnos WHERE configuracion_id = ?', [id]);
-      
-      // Agregar nuevos turnos
-      for (const turno of turnos) {
-        await pool.query(
-          `INSERT INTO configuraciones_malla_turnos (configuracion_id, plantilla_id, orden, duracion_horas)
-           VALUES (?, ?, ?, ?)`,
-          [id, turno.plantilla_id, turno.orden || 1, turno.duracion_horas]
-        );
+    updateFields.push('actualizado_por = ?');
+    updateValues.push(userId, id, config.empresa_id);
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.query(`UPDATE configuraciones_malla SET ${updateFields.join(', ')} WHERE id = ? AND empresa_id = ?`, updateValues);
+      if (validacionTurnos) {
+        await connection.query('DELETE FROM configuraciones_malla_turnos WHERE configuracion_id = ?', [id]);
+        for (const turno of validacionTurnos.turnos) {
+          await connection.query(
+            `INSERT INTO configuraciones_malla_turnos (configuracion_id, plantilla_id, orden, duracion_horas)
+             VALUES (?, ?, ?, ?)`,
+            [id, turno.plantilla_id, turno.orden, turno.duracion_horas]
+          );
+        }
       }
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
 
     await logAction(config.empresa_id, userId, 'actualizar_configuracion_malla', 'configuraciones_malla', id, {
       nombre, cantidad_empleados, turnos_mensuales_empleado
     });
 
-    res.json({ message: 'Configuración actualizada exitosamente' });
+    const [savedConfigs] = await pool.query(
+      `${CONFIGURACION_MALLA_CON_USUARIOS} WHERE cm.id = ? AND cm.empresa_id = ?`,
+      [id, config.empresa_id]
+    );
+    res.json({ configuracion: savedConfigs[0], message: 'Configuración actualizada exitosamente' });
   } catch (error) {
     console.error('Error updating configuración:', error);
     res.status(500).json({ error: 'Error al actualizar configuración' });
@@ -260,8 +344,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.auth.Id_usuario;
-    const userRole = req.auth.Id_rol;
+    const userId = getUserId(req.auth);
+    const userRole = getUserRole(req.auth);
 
     if (!isAdminEmpresa(userRole)) {
       return res.status(403).json({ error: 'Acceso denegado' });
@@ -327,8 +411,8 @@ router.post('/:id/generar', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { fechaInicio, cantidadSemanas, tipoDistribucion, pautasSeleccionadas } = req.body;
-    const userId = req.auth.Id_usuario;
-    const userRole = req.auth.Id_rol;
+    const userId = getUserId(req.auth);
+    const userRole = getUserRole(req.auth);
     const empresaId = req.auth.empresa_id;
 
     // Validar permisos

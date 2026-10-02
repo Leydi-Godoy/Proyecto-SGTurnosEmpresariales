@@ -1,7 +1,40 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
+const { pool: mysqlPool } = require('../db');
 const { authenticateToken } = require('../auth');
+
+const pool = {
+  async getConnection() {
+    const connection = await mysqlPool.getConnection();
+    return {
+      async query(...args) {
+        const [result] = await connection.query(...args);
+        return result;
+      },
+      release() {
+        connection.release();
+      }
+    };
+  }
+};
+
+function getAuthContext(req) {
+  const userRole = req.auth?.role ?? req.auth?.Id_rol;
+  return {
+    userId: Number(req.auth?.id || req.auth?.Id_usuario || 0),
+    userRole,
+    userCompany: Number(req.auth?.empresa_id || 0)
+  };
+}
+
+function isAdminRole(role) {
+  return new Set(['1', '2', 'admin', 'adminempresa', 'admin_empresa', 'admin empresa', 'super_admin', 'superadmin'])
+    .has(String(role).trim().toLowerCase());
+}
+
+function isSuperAdminRole(role) {
+  return new Set(['1', 'super_admin', 'superadmin']).has(String(role).trim().toLowerCase());
+}
 
 // Helper function: Log actions to audit table
 async function logAction(empresa_id, usuario_id, accion, tabla_objetivo, id_objetivo, detalles = {}) {
@@ -20,9 +53,17 @@ async function logAction(empresa_id, usuario_id, accion, tabla_objetivo, id_obje
 // Helper function: Check company access for multi-tenant security
 function checkCompanyAccess(userRole, userCompany, requestedCompany) {
   // Super Admin (1) can access any company
-  if (userRole === 1) return true;
+  if (isSuperAdminRole(userRole)) return true;
   // Others can only access their own company
-  return userCompany === requestedCompany;
+  return Number(userCompany) === Number(requestedCompany);
+}
+
+function normalizeTime(time) {
+  return typeof time === 'string' && /^\d{2}:\d{2}$/.test(time) ? `${time}:00` : time;
+}
+
+function normalizeActive(value) {
+  return value === true || value === 1 || value === '1' || value === 'true' ? 1 : 0;
 }
 
 // Helper function: Validate time format (HH:MM:SS)
@@ -55,10 +96,10 @@ function calculateDuration(startTime, endTime) {
 // POST /api/plantillas-turno
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { empresa_id, nombre, tipo, hora_inicio, hora_fin, es_nocturno, patron_recurrencia, descripcion, es_personalizada, patron_rotativo, duracion_base } = req.body;
-    const userId = req.auth.Id_usuario;
-    const userRole = req.auth.Id_rol;
-    const userCompany = req.auth.empresa_id;
+    const { empresa_id, nombre, tipo, es_nocturno, patron_recurrencia, descripcion, es_personalizada, patron_rotativo, duracion_base, activo } = req.body;
+    const hora_inicio = normalizeTime(req.body.hora_inicio);
+    const hora_fin = normalizeTime(req.body.hora_fin);
+    const { userId, userRole, userCompany } = getAuthContext(req);
 
     // Validation: Required fields
     if (!empresa_id || !nombre) {
@@ -90,7 +131,7 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     // Authorization: Only AdminEmpresa (2) or Super Admin (1) can create
-    if (userRole !== 1 && userRole !== 2) {
+    if (!isAdminRole(userRole)) {
       return res.status(403).json({
         error: 'Acceso denegado: Solo Admin Empresa o Super Admin pueden crear plantillas'
       });
@@ -150,8 +191,8 @@ router.post('/', authenticateToken, async (req, res) => {
     const result = await connection.query(
       `INSERT INTO plantillas_turno (
         empresa_id, nombre, tipo, descripcion, hora_inicio, hora_fin, duracion_minutos, duracion_base,
-        es_nocturno, patron_recurrencia, es_personalizada, patron_rotativo, creado_en
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        es_nocturno, patron_recurrencia, es_personalizada, patron_rotativo, activo, creado_en
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         empresa_id, 
         nombre, 
@@ -164,7 +205,8 @@ router.post('/', authenticateToken, async (req, res) => {
         es_nocturno || false, 
         patron_recurrencia || null,
         es_personalizada || false,
-        es_personalizada && patron_rotativo ? JSON.stringify(patron_rotativo) : null
+        es_personalizada && patron_rotativo ? JSON.stringify(patron_rotativo) : null,
+        activo === undefined ? 1 : normalizeActive(activo)
       ]
     );
 
@@ -180,7 +222,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Fetch and return created template
     const plantillas = await connection.query(
-      'SELECT id, empresa_id, nombre, hora_inicio, hora_fin, duracion_minutos, es_nocturno, patron_recurrencia, creado_en FROM plantillas_turno WHERE id = ?',
+      'SELECT id, empresa_id, nombre, descripcion, hora_inicio, hora_fin, duracion_minutos, es_nocturno, patron_recurrencia, activo, creado_en FROM plantillas_turno WHERE id = ?',
       [plantillaId]
     );
 
@@ -205,8 +247,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { empresa_id } = req.query;
-    const userRole = req.auth.Id_rol;
-    const userCompany = req.auth.empresa_id;
+    const { userRole, userCompany } = getAuthContext(req);
 
     // Validation: empresa_id required
     if (!empresa_id) {
@@ -239,7 +280,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const plantillas = await connection.query(
       `SELECT 
         id, empresa_id, nombre, hora_inicio, hora_fin, duracion_minutos, 
-        es_nocturno, patron_recurrencia, creado_en 
+        es_nocturno, patron_recurrencia, descripcion, activo, creado_en 
       FROM plantillas_turno 
       WHERE empresa_id = ? 
       ORDER BY nombre ASC`,
@@ -267,15 +308,14 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userRole = req.user.Id_rol;
-    const userCompany = req.user.empresa_id;
+    const { userRole, userCompany } = getAuthContext(req);
 
     const connection = await pool.getConnection();
 
     // Get template
     const plantillas = await connection.query(
-      `SELECT id, empresa_id, nombre, hora_inicio, hora_fin, duracion_minutos, 
-              es_nocturno, patron_recurrencia, creado_en 
+            `SELECT id, empresa_id, nombre, descripcion, hora_inicio, hora_fin, duracion_minutos, 
+              es_nocturno, patron_recurrencia, activo, creado_en 
        FROM plantillas_turno 
        WHERE id = ?`,
       [id]
@@ -328,13 +368,13 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, hora_inicio, hora_fin, es_nocturno, patron_recurrencia } = req.body;
-    const userId = req.user.Id_usuario;
-    const userRole = req.user.Id_rol;
-    const userCompany = req.user.empresa_id;
+    const { nombre, es_nocturno, patron_recurrencia, descripcion, activo } = req.body;
+    const hora_inicio = req.body.hora_inicio === undefined ? undefined : normalizeTime(req.body.hora_inicio);
+    const hora_fin = req.body.hora_fin === undefined ? undefined : normalizeTime(req.body.hora_fin);
+    const { userId, userRole, userCompany } = getAuthContext(req);
 
     // Authorization: Only AdminEmpresa (2) or Super Admin (1)
-    if (userRole !== 1 && userRole !== 2) {
+    if (!isAdminRole(userRole)) {
       return res.status(403).json({
         error: 'Acceso denegado: Solo Admin Empresa o Super Admin pueden editar plantillas'
       });
@@ -433,6 +473,18 @@ router.put('/:id', authenticateToken, async (req, res) => {
       values.push(patron_recurrencia);
     }
 
+    if (descripcion !== undefined) {
+      updates.descripcion = descripcion;
+      updateFields.push('descripcion = ?');
+      values.push(descripcion || null);
+    }
+
+    if (activo !== undefined) {
+      updates.activo = normalizeActive(activo);
+      updateFields.push('activo = ?');
+      values.push(updates.activo);
+    }
+
     if (updateFields.length === 0) {
       connection.release();
       return res.status(400).json({
@@ -450,7 +502,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     // Fetch and return updated template
     const updated = await connection.query(
-      'SELECT id, empresa_id, nombre, hora_inicio, hora_fin, duracion_minutos, es_nocturno, patron_recurrencia, creado_en FROM plantillas_turno WHERE id = ?',
+      'SELECT id, empresa_id, nombre, descripcion, hora_inicio, hora_fin, duracion_minutos, es_nocturno, patron_recurrencia, activo, creado_en FROM plantillas_turno WHERE id = ?',
       [id]
     );
 
@@ -475,12 +527,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.Id_usuario;
-    const userRole = req.user.Id_rol;
-    const userCompany = req.user.empresa_id;
+    const { userId, userRole, userCompany } = getAuthContext(req);
 
     // Authorization: Only AdminEmpresa (2) or Super Admin (1)
-    if (userRole !== 1 && userRole !== 2) {
+    if (!isAdminRole(userRole)) {
       return res.status(403).json({
         error: 'Acceso denegado: Solo Admin Empresa o Super Admin pueden eliminar plantillas'
       });

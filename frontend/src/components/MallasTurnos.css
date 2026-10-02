@@ -43,6 +43,85 @@
   font-size: 20px;
 }
 
+.config-preview {
+  padding: 16px;
+  border: 1px solid rgba(118, 215, 251, 0.3);
+  border-radius: 8px;
+  background: rgba(17, 78, 82, 0.22);
+}
+
+.config-preview-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.config-preview-heading h4 {
+  margin: 0;
+  color: var(--neon-white);
+  font-size: 15px;
+}
+
+.config-preview-heading span,
+.config-preview-shifts > span {
+  color: rgba(118, 215, 251, 0.75);
+  font-size: 12px;
+}
+
+.config-preview-description {
+  margin: 8px 0 14px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+}
+
+.config-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 10px;
+}
+
+.config-preview-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(118, 215, 251, 0.14);
+  border-radius: 6px;
+}
+
+.config-preview-grid span {
+  color: rgba(118, 215, 251, 0.75);
+  font-size: 11px;
+}
+
+.config-preview-grid strong {
+  color: var(--neon-white);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.config-preview-shifts {
+  margin-top: 14px;
+}
+
+.config-preview-shifts ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.config-preview-shifts li {
+  padding: 6px 9px;
+  border-radius: 4px;
+  background: rgba(118, 215, 251, 0.1);
+  color: var(--neon-white);
+  font-size: 12px;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
