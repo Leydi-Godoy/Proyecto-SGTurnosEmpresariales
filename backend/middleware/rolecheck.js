@@ -8,7 +8,8 @@ function requireRole(...allowedRoles) {
 			return res.status(401).json({ error: 'Unauthorized' });
 		}
 
-		const userRole = parseInt(req.user.Id_rol);
+		// El role viene del JWT como string, ej: "4" para supervisores
+		const userRole = parseInt(req.user.role || req.user.Id_rol);
 		
 		if (!allowedRoles.includes(userRole)) {
 			const roleNames = {
@@ -60,7 +61,11 @@ function requireCompanyAccess(req, res, next) {
 	});
 }
 
+// Helper para supervisor (rol 4)
+const requireSupervisor = requireRole(4);
+
 module.exports = {
 	requireRole,
-	requireCompanyAccess
+	requireCompanyAccess,
+	requireSupervisor
 };

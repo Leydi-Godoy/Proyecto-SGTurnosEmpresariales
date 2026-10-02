@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import SupervisorHome from './SupervisorHome'
-import NovedadesAprobacion from './NovedadesAprobacion'
+import SolicitudesGestionSupervisor from './SolicitudesGestionSupervisor'
 import MiEquipo from './MiEquipo'
 import ReportesSupervisor from './ReportesSupervisor'
 
@@ -41,7 +41,7 @@ export default function SupervisorDashboard({ onLogout }) {
 
       <div className="dashboard-content">
         {activeTab === 'inicio' && <SupervisorHome />}
-        {activeTab === 'aprobaciones' && <NovedadesAprobacion />}
+        {activeTab === 'aprobaciones' && <SolicitudesGestionSupervisor />}
         {activeTab === 'equipo' && <MiEquipo />}
         {activeTab === 'reportes' && <ReportesSupervisor />}
       </div>

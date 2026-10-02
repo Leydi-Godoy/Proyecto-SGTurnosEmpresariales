@@ -1,12 +1,12 @@
-import express from 'express'
-import pool from '../db.js'
-import { requireAuth } from '../middleware/auth.js'
-import { requireSupervisor } from '../middleware/rolecheck.js'
+const express = require('express')
+const { pool } = require('../db.js')
+const { authenticateToken } = require('../auth.js')
+const { requireSupervisor } = require('../middleware/rolecheck.js')
 
 const router = express.Router()
 
 // Obtener solicitudes pendientes del supervisor
-router.get('/solicitudes', requireAuth, requireSupervisor, async (req, res) => {
+router.get('/solicitudes', authenticateToken, requireSupervisor, async (req, res) => {
   try {
     const usuarioId = req.user.id
     const empresaId = req.user.empresa_id
@@ -16,7 +16,7 @@ router.get('/solicitudes', requireAuth, requireSupervisor, async (req, res) => {
       SELECT 
         sn.id,
         sn.tipo,
-        sn.descripcion,
+        sn.motivo,
         sn.estado,
         sn.fecha_inicio,
         sn.fecha_fin,
@@ -40,7 +40,7 @@ router.get('/solicitudes', requireAuth, requireSupervisor, async (req, res) => {
 })
 
 // Aprobar solicitud
-router.post('/solicitudes/:id/aprobar', requireAuth, requireSupervisor, async (req, res) => {
+router.post('/solicitudes/:id/aprobar', authenticateToken, requireSupervisor, async (req, res) => {
   try {
     const { id } = req.params
     const usuarioId = req.user.id
@@ -56,12 +56,18 @@ router.post('/solicitudes/:id/aprobar', requireAuth, requireSupervisor, async (r
       return res.status(404).json({ error: 'Solicitud no encontrada' })
     }
 
-    // Actualizar estado
+    // 1. Actualizar estado en solicitudes_novedad
     await pool.query(`
       UPDATE solicitudes_novedad 
-      SET estado = 'aprobado', revisado_en = NOW(), revisado_por = ?
+      SET estado = 'aprobado'
       WHERE id = ?
-    `, [usuarioId, id])
+    `, [id])
+
+    // 2. Registrar la aprobación en la tabla aprobaciones
+    await pool.query(`
+      INSERT INTO aprobaciones (solicitud_id, aprobador_id, decision, comentario)
+      VALUES (?, ?, 'aprobado', ?)
+    `, [id, usuarioId, 'Aprobado por supervisor'])
 
     res.json({ success: true, message: 'Solicitud aprobada' })
   } catch (error) {
@@ -71,7 +77,7 @@ router.post('/solicitudes/:id/aprobar', requireAuth, requireSupervisor, async (r
 })
 
 // Rechazar solicitud
-router.post('/solicitudes/:id/rechazar', requireAuth, requireSupervisor, async (req, res) => {
+router.post('/solicitudes/:id/rechazar', authenticateToken, requireSupervisor, async (req, res) => {
   try {
     const { id } = req.params
     const { motivo_rechazo } = req.body
@@ -88,12 +94,18 @@ router.post('/solicitudes/:id/rechazar', requireAuth, requireSupervisor, async (
       return res.status(404).json({ error: 'Solicitud no encontrada' })
     }
 
-    // Actualizar estado
+    // 1. Actualizar estado en solicitudes_novedad
     await pool.query(`
       UPDATE solicitudes_novedad 
-      SET estado = 'rechazado', motivo_rechazo = ?, revisado_en = NOW(), revisado_por = ?
+      SET estado = 'rechazado'
       WHERE id = ?
-    `, [motivo_rechazo || null, usuarioId, id])
+    `, [id])
+
+    // 2. Registrar el rechazo en la tabla aprobaciones
+    await pool.query(`
+      INSERT INTO aprobaciones (solicitud_id, aprobador_id, decision, comentario)
+      VALUES (?, ?, 'rechazado', ?)
+    `, [id, usuarioId, motivo_rechazo || 'Rechazado por supervisor'])
 
     res.json({ success: true, message: 'Solicitud rechazada' })
   } catch (error) {
@@ -102,4 +114,4 @@ router.post('/solicitudes/:id/rechazar', requireAuth, requireSupervisor, async (
   }
 })
 
-export default router
+module.exports = router

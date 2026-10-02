@@ -19,10 +19,12 @@ export default function Novedades() {
   const [form, setForm] = useState({ 
     tipo: '', 
     descripcion: '', 
-    fecha_solicitada: '',
+    fecha_inicio: '',
+    fecha_fin: '',
     detalles_adicionales: ''
   })
-  const [loading, setLoading] = useState(true)
+  const [documentos, setDocumentos] = useState([])
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -127,14 +129,27 @@ export default function Novedades() {
             </select>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="fecha_solicitada">Fecha solicitada</label>
-            <input 
-              id="fecha_solicitada"
-              type="date" 
-              value={form.fecha_solicitada} 
-              onChange={(e) => setForm({ ...form, fecha_solicitada: e.target.value })}
-            />
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="fecha_inicio">{form.tipo === 'cambio_turno' ? 'Fecha actual del turno' : 'Fecha de inicio'}</label>
+              <input 
+                id="fecha_inicio"
+                type="date" 
+                required
+                value={form.fecha_inicio} 
+                onChange={(e) => setForm({ ...form, fecha_inicio: e.target.value })}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="fecha_fin">{form.tipo === 'cambio_turno' ? 'Fecha del nuevo turno' : 'Fecha de fin'}</label>
+              <input 
+                id="fecha_fin"
+                type="date" 
+                value={form.fecha_fin} 
+                onChange={(e) => setForm({ ...form, fecha_fin: e.target.value })}
+              />
+            </div>
           </div>
 
           <div className="form-group">
@@ -160,6 +175,27 @@ export default function Novedades() {
             />
           </div>
 
+          <div className="form-group">
+            <label htmlFor="documentos">Documentos de soporte</label>
+            <input 
+              id="documentos"
+              type="file" 
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+              onChange={(e) => setDocumentos(Array.from(e.target.files || []))}
+            />
+            {documentos.length > 0 && (
+              <div className="docs-preview">
+                <p>{documentos.length} archivo(s) seleccionado(s):</p>
+                <ul>
+                  {documentos.map((doc, idx) => (
+                    <li key={idx}>{doc.name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
           <div className="form-actions">
             <button 
               className="button-primary" 
@@ -173,7 +209,8 @@ export default function Novedades() {
               type="button"
               onClick={() => {
                 setShowForm(false)
-                setForm({ tipo: '', descripcion: '', fecha_solicitada: '', detalles_adicionales: '' })
+                setForm({ tipo: '', descripcion: '', fecha_inicio: '', fecha_fin: '', detalles_adicionales: '' })
+                setDocumentos([])
               }}
             >
               Cancelar
@@ -242,10 +279,10 @@ export default function Novedades() {
                         <p className="novedad-details">{n.detalles_adicionales}</p>
                       )}
                       <p className="novedad-timestamp">
-                        Enviado: {new Intl.DateTimeFormat('es-CO', { 
+                        Enviado: {n.creado_en ? new Intl.DateTimeFormat('es-CO', { 
                           dateStyle: 'short', 
                           timeStyle: 'short' 
-                        }).format(new Date(n.created_at || n.fecha_creacion))}
+                        }).format(new Date(n.creado_en)) : 'N/A'}
                       </p>
                     </li>
                   ))}
