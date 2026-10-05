@@ -60,6 +60,7 @@ const generadorMallas = {
       configuracionId,
       empresaId,
       fechaInicio,
+      fechaFin,
       cantidadSemanas,
       usuarioId,
       tipoDistribucion,
@@ -72,6 +73,7 @@ const generadorMallas = {
         configuracionId,
         empresaId,
         fechaInicio,
+        fechaFin,
         cantidadSemanas,
         tipoDistribucion
       });
@@ -122,6 +124,7 @@ const generadorMallas = {
         turnos: turnosFiltrados,
         empleados: empleados.slice(0, config.cantidad_empleados),
         fechaInicio,
+        fechaFin,
         cantidadSemanas,
         tipoDistribucion
       });
@@ -153,7 +156,7 @@ const generadorMallas = {
         periodo: {
           fechaInicio,
           cantidadSemanas,
-          fechaFin: generadorMallas._calcularFechaFin(
+          fechaFin: fechaFin || generadorMallas._calcularFechaFin(
             fechaInicio,
             cantidadSemanas
           )
@@ -195,6 +198,19 @@ const generadorMallas = {
     const fecha = new Date(`${params.fechaInicio}T00:00:00.000Z`);
     if (isNaN(fecha.getTime()) || generadorMallas._formatearFecha(fecha) !== params.fechaInicio) {
       throw new Error('fechaInicio debe ser una fecha válida (YYYY-MM-DD)');
+    }
+
+    if (params.fechaFin) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(params.fechaFin)) {
+        throw new Error('fechaFin debe ser una fecha válida (YYYY-MM-DD)');
+      }
+      const finDate = new Date(`${params.fechaFin}T00:00:00.000Z`);
+      if (isNaN(finDate.getTime()) || generadorMallas._formatearFecha(finDate) !== params.fechaFin) {
+        throw new Error('fechaFin debe ser una fecha válida (YYYY-MM-DD)');
+      }
+      if (finDate < fecha) {
+        throw new Error('fechaFin debe ser posterior o igual a fechaInicio');
+      }
     }
   },
 
@@ -251,10 +267,11 @@ const generadorMallas = {
    * @private
    */
   _generarInstancias: (params) => {
-    const { config, turnos, empleados, fechaInicio, cantidadSemanas, tipoDistribucion } = params;
+    const { config, turnos, empleados, fechaInicio, fechaFin, cantidadSemanas, tipoDistribucion } = params;
 
     const instancias = [];
     const fecha = new Date(`${fechaInicio}T00:00:00.000Z`);
+    const limiteFin = fechaFin ? new Date(`${fechaFin}T00:00:00.000Z`) : null;
     const turnosRotacion = [...turnos].sort((a, b) => Number(a.orden) - Number(b.orden));
     const diasLaborales = Math.min(7, Math.max(1, Number(config.dias_laborales_por_semana || 5)));
     const horasMaximasSemana = Number(config.horas_por_semana || 42);
@@ -266,6 +283,9 @@ const generadorMallas = {
     for (let dia = 0; dia < Number(cantidadSemanas) * 7; dia++) {
       const fechaActual = new Date(fecha);
       fechaActual.setUTCDate(fechaActual.getUTCDate() + dia);
+
+      // Si se definió un límite de fecha fin, no generar más allá de ese día
+      if (limiteFin && fechaActual > limiteFin) break;
 
       // El formulario cuenta los días de lunes a domingo.
       const diaLaboralSemana = (fechaActual.getUTCDay() + 6) % 7;

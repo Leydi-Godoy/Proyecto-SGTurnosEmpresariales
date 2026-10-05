@@ -62,10 +62,11 @@ router.get('/perfil', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT u.id AS id_usuario,
               CONCAT_WS(' ', u.primer_nombre, u.segundo_nombre, u.primer_apellido, u.segundo_apellido) AS nombre,
-              u.correo, u.empresa_id, e.nombre_especialidad AS especialidad,
+              u.correo, u.empresa_id, esp.nombre AS especialidad,
               u.activo, u.creado_en
        FROM usuarios u
-       LEFT JOIN especialidades e ON u.especialidad_id = e.id
+       LEFT JOIN empleados e ON e.usuario_id = u.id
+       LEFT JOIN especialidades esp ON e.especialidad_id = esp.id
        WHERE u.id = ? LIMIT 1`,
       [id],
     );
@@ -84,20 +85,50 @@ router.get('/malla-completa', async (req, res) => {
   if (!pool) return res.json({ turnos: [] });
 
   const { fecha_inicio, fecha_fin } = req.query || {};
-  
+
   try {
+    // Configuración(es) de malla publicada(s) de la empresa, con info de empresa
+    const [configs] = await pool.query(
+      `SELECT cm.*, e.nombre AS empresa_nombre
+       FROM configuraciones_malla cm
+       JOIN empresas e ON e.id = cm.empresa_id
+       WHERE cm.empresa_id = ? AND cm.activo = 1 AND cm.publicada = 1
+       ORDER BY cm.fecha_inicio_vigencia DESC
+       LIMIT 1`,
+      [empresaId]
+    );
+    const configuracion = configs[0] || null;
+
+    // Turnos vinculados a esa configuración
+    let turnosVinculados = [];
+    if (configuracion) {
+      const [turnosRows] = await pool.query(
+        `SELECT cmt.id, cmt.plantilla_id, cmt.orden, cmt.duracion_horas, pt.nombre, pt.hora_inicio, pt.hora_fin
+         FROM configuraciones_malla_turnos cmt
+         JOIN plantillas_turno pt ON cmt.plantilla_id = pt.id
+         WHERE cmt.configuracion_id = ?
+         ORDER BY cmt.orden ASC`,
+        [configuracion.id]
+      );
+      turnosVinculados = turnosRows;
+    }
+
     const query = `
-      SELECT at.id, at.fecha, pt.nombre AS nombre_turno, pt.hora_inicio, pt.hora_fin,
+      SELECT at.id, it.fecha, pt.nombre AS nombre_turno, pt.hora_inicio, pt.hora_fin, cmt.duracion_horas,
              CONCAT_WS(' ', u.primer_nombre, u.segundo_nombre, u.primer_apellido, u.segundo_apellido) AS nombre_empleado,
-             e.nombre_especialidad AS especialidad
+             esp.nombre AS especialidad
       FROM asignaciones_turno at
-      LEFT JOIN plantillas_turno pt ON at.plantilla_turno_id = pt.id
-      LEFT JOIN usuarios u ON at.usuario_id = u.id
-      LEFT JOIN especialidades e ON pt.especialidad_id = e.id
-      WHERE at.empresa_id = ?
-      ${fecha_inicio ? 'AND at.fecha >= ?' : ''}
-      ${fecha_fin ? 'AND at.fecha <= ?' : ''}
-      ORDER BY at.fecha ASC, pt.hora_inicio ASC
+      JOIN instancias_turno it ON at.instancia_turno_id = it.id
+      JOIN plantillas_turno pt ON it.plantilla_id = pt.id
+      JOIN configuraciones_malla_turnos cmt ON cmt.plantilla_id = pt.id
+      JOIN configuraciones_malla cm ON cm.id = cmt.configuracion_id AND cm.empresa_id = pt.empresa_id
+      LEFT JOIN empleados e ON at.empleado_id = e.id
+      LEFT JOIN usuarios u ON e.usuario_id = u.id
+      LEFT JOIN especialidades esp ON e.especialidad_id = esp.id
+      WHERE pt.empresa_id = ? AND cm.activo = 1 AND cm.publicada = 1
+      ${fecha_inicio ? 'AND it.fecha >= ?' : ''}
+      ${fecha_fin ? 'AND it.fecha <= ?' : ''}
+      ORDER BY it.fecha ASC, pt.hora_inicio ASC
       LIMIT 1000
     `;
     
@@ -106,8 +137,9 @@ router.get('/malla-completa', async (req, res) => {
     if (fecha_fin) params.push(fecha_fin);
 
     const [rows] = await pool.query(query, params);
-    return res.json({ turnos: rows || [] });
+    return res.json({ turnos: rows || [], configuracion, turnosVinculados });
   } catch (err) {
+    if (['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(err.code)) return res.json({ turnos: [] });
     console.error('GET /api/empleado/malla-completa error', err);
     return res.status(500).json({ error: 'could not fetch malla' });
   }
@@ -120,19 +152,31 @@ router.get('/mis-turnos', async (req, res) => {
   if (!pool) return res.json([]);
 
   try {
+    const [empleadoRows] = await pool.query(
+      `SELECT id FROM empleados WHERE usuario_id = ? LIMIT 1`,
+      [usuarioId]
+    );
+    if (!empleadoRows[0]) return res.json([]);
+    const empleadoId = empleadoRows[0].id;
+
     const [rows] = await pool.query(
-      `SELECT at.id, at.fecha, pt.nombre AS nombre_turno, pt.hora_inicio, pt.hora_fin,
-              e.nombre_especialidad AS especialidad
+      `SELECT at.id, it.fecha, pt.nombre AS nombre_turno, pt.hora_inicio, pt.hora_fin, cmt.duracion_horas,
+              esp.nombre AS especialidad
        FROM asignaciones_turno at
-       LEFT JOIN plantillas_turno pt ON at.plantilla_turno_id = pt.id
-       LEFT JOIN especialidades e ON pt.especialidad_id = e.id
-       WHERE at.usuario_id = ?
-       ORDER BY at.fecha ASC, pt.hora_inicio ASC
+       JOIN instancias_turno it ON at.instancia_turno_id = it.id
+       JOIN plantillas_turno pt ON it.plantilla_id = pt.id
+       JOIN configuraciones_malla_turnos cmt ON cmt.plantilla_id = pt.id
+       JOIN configuraciones_malla cm ON cm.id = cmt.configuracion_id AND cm.empresa_id = pt.empresa_id
+       LEFT JOIN empleados e ON at.empleado_id = e.id
+       LEFT JOIN especialidades esp ON e.especialidad_id = esp.id
+       WHERE at.empleado_id = ? AND cm.activo = 1 AND cm.publicada = 1
+       ORDER BY it.fecha ASC, pt.hora_inicio ASC
        LIMIT 500`,
-      [usuarioId],
+      [empleadoId],
     );
     return res.json(rows || []);
   } catch (err) {
+    if (['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(err.code)) return res.json([]);
     console.error('GET /api/empleado/mis-turnos error', err);
     return res.status(500).json({ error: 'could not fetch turnos' });
   }

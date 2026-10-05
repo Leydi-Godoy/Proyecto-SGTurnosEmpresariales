@@ -24,7 +24,7 @@ router.get('/solicitudes', authenticateToken, requireSupervisor, async (req, res
         e.id as empleado_id,
         u.documento,
         u.correo,
-        CONCAT(u.nombre, ' ', u.apellido) as empleado_nombre
+        TRIM(CONCAT_WS(' ', u.primer_nombre, u.segundo_nombre, u.primer_apellido, u.segundo_apellido)) as empleado_nombre
       FROM solicitudes_novedad sn
       JOIN empleados e ON sn.empleado_id = e.id
       JOIN usuarios u ON e.usuario_id = u.id
@@ -36,6 +36,64 @@ router.get('/solicitudes', authenticateToken, requireSupervisor, async (req, res
   } catch (error) {
     console.error('Error obteniendo solicitudes:', error)
     res.status(500).json({ error: 'Error obteniendo solicitudes' })
+  }
+})
+
+// Obtener detalle de una solicitud (empleado, documentos y decisión si ya fue gestionada)
+router.get('/solicitudes/:id', authenticateToken, requireSupervisor, async (req, res) => {
+  try {
+    const { id } = req.params
+    const empresaId = req.user.empresa_id
+
+    const [rows] = await pool.query(`
+      SELECT 
+        sn.id,
+        sn.tipo,
+        sn.motivo,
+        sn.estado,
+        sn.fecha_inicio,
+        sn.fecha_fin,
+        sn.creado_en,
+        e.id as empleado_id,
+        u.documento,
+        u.correo,
+        TRIM(CONCAT_WS(' ', u.primer_nombre, u.segundo_nombre, u.primer_apellido, u.segundo_apellido)) as empleado_nombre
+      FROM solicitudes_novedad sn
+      JOIN empleados e ON sn.empleado_id = e.id
+      JOIN usuarios u ON e.usuario_id = u.id
+      WHERE sn.id = ? AND sn.empresa_id = ?
+      LIMIT 1
+    `, [id, empresaId])
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Solicitud no encontrada' })
+    }
+
+    const solicitud = rows[0]
+
+    const [documentos] = await pool.query(`
+      SELECT id, nombre_archivo, url_almacenamiento, creado_en
+      FROM documentos_solicitud
+      WHERE solicitud_id = ?
+      ORDER BY creado_en ASC
+    `, [id])
+
+    const [aprobaciones] = await pool.query(`
+      SELECT id, aprobador_id, decision, comentario, decidido_en
+      FROM aprobaciones
+      WHERE solicitud_id = ?
+      ORDER BY decidido_en DESC
+      LIMIT 1
+    `, [id])
+
+    res.json({
+      ...solicitud,
+      documentos: documentos || [],
+      aprobacion: aprobaciones && aprobaciones[0] ? aprobaciones[0] : null,
+    })
+  } catch (error) {
+    console.error('Error obteniendo detalle de solicitud:', error)
+    res.status(500).json({ error: 'Error obteniendo detalle de solicitud' })
   }
 })
 
@@ -80,7 +138,7 @@ router.post('/solicitudes/:id/aprobar', authenticateToken, requireSupervisor, as
 router.post('/solicitudes/:id/rechazar', authenticateToken, requireSupervisor, async (req, res) => {
   try {
     const { id } = req.params
-    const { motivo_rechazo } = req.body
+    const motivo_rechazo = req.body?.motivo_rechazo || req.body?.comentario
     const usuarioId = req.user.id
     const empresaId = req.user.empresa_id
 

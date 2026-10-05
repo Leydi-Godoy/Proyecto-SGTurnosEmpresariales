@@ -102,6 +102,7 @@ router.post('/generar-malla', authenticateToken, async (req, res) => {
       empresa_id: requestedEmpresaId,
       configuracion_id,
       fecha_inicio,
+      fecha_fin,
       cantidad_semanas,
       tipoDistribucion = 'equilibrada',
       pautasSeleccionadas
@@ -182,16 +183,50 @@ router.post('/generar-malla', authenticateToken, async (req, res) => {
       });
     }
 
+    // ✅ LIMPIAR INSTANCIAS/ASIGNACIONES PREVIAS DE ESTA CONFIGURACIÓN
+    // Evita que una nueva generación conviva con instancias de generaciones
+    // anteriores (datos duplicados/mezclados de distintos meses).
+    const [plantillasPrevias] = await pool.query(
+      `SELECT DISTINCT pt.id
+       FROM configuraciones_malla_turnos cmt
+       JOIN plantillas_turno pt ON pt.id = cmt.plantilla_id
+       WHERE cmt.configuracion_id = ? AND pt.empresa_id = ?`,
+      [configuracion_id, empresa_id]
+    );
+    const plantillaIdsPrevias = plantillasPrevias.map(p => p.id);
+    if (plantillaIdsPrevias.length > 0) {
+      const ph = plantillaIdsPrevias.map(() => '?').join(',');
+      const [instanciasPrevias] = await pool.query(
+        `SELECT id FROM instancias_turno WHERE plantilla_id IN (${ph})`,
+        plantillaIdsPrevias
+      );
+      const idsPrevios = instanciasPrevias.map(i => i.id);
+      if (idsPrevios.length > 0) {
+        const phi = idsPrevios.map(() => '?').join(',');
+        await pool.query(`DELETE FROM asignaciones_turno WHERE instancia_turno_id IN (${phi})`, idsPrevios);
+        await pool.query(`DELETE FROM instancias_turno WHERE id IN (${phi})`, idsPrevios);
+      }
+    }
+
     // ✅ LLAMAR AL GENERADOR DE MALLAS
     const resultado = await generadorMallas.generarMalla({
       configuracionId: configuracion_id,
       empresaId: empresa_id,
       fechaInicio: fecha_inicio,
+      fechaFin: fecha_fin || undefined,
       cantidadSemanas: cantidad_semanas,
       usuarioId: userId,
       tipoDistribucion: tipoDistribucion,
       pautasSeleccionadas: pautasSeleccionadas
     });
+
+    // ✅ GUARDAR EL PERÍODO VIGENTE DE LA MALLA (evita mezclar generaciones de distintos meses en el detalle)
+    await pool.query(
+      `UPDATE configuraciones_malla
+       SET fecha_inicio_vigencia = ?, fecha_fin_vigencia = ?
+       WHERE id = ?`,
+      [resultado.periodo.fechaInicio, resultado.periodo.fechaFin, configuracion_id]
+    );
 
     // ✅ REGISTRAR EN AUDITORÍA
     await logAction(
@@ -253,7 +288,7 @@ router.get('/mallas', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'No tienes acceso a esta empresa' });
     }
 
-    // Obtener configuraciones de malla con detalles
+    // Obtener configuraciones de malla con detalles (solo activas, es decir, no eliminadas)
     const [mallas] = await pool.query(
       `SELECT 
          cm.id,
@@ -262,16 +297,21 @@ router.get('/mallas', authenticateToken, async (req, res) => {
          cm.horas_por_semana,
          cm.horas_por_mes,
          cm.tipo_distribucion,
-         COUNT(DISTINCT it.id) as total_instancias,
-         MIN(it.fecha) as fecha_inicio,
-         MAX(it.fecha) as fecha_fin,
+         COUNT(DISTINCT CASE
+           WHEN cm.fecha_inicio_vigencia IS NULL OR it.fecha BETWEEN cm.fecha_inicio_vigencia AND cm.fecha_fin_vigencia
+           THEN it.id
+         END) as total_instancias,
+         COALESCE(cm.fecha_inicio_vigencia, MIN(it.fecha)) as fecha_inicio,
+         COALESCE(cm.fecha_fin_vigencia, MAX(it.fecha)) as fecha_fin,
          cm.activo,
+         cm.publicada,
+         cm.publicada_en,
          cm.creado_en
        FROM configuraciones_malla cm
        LEFT JOIN configuraciones_malla_turnos cmt ON cmt.configuracion_id = cm.id
        LEFT JOIN plantillas_turno pt ON pt.id = cmt.plantilla_id AND pt.empresa_id = cm.empresa_id
        LEFT JOIN instancias_turno it ON it.plantilla_id = pt.id
-       WHERE cm.empresa_id = ?
+       WHERE cm.empresa_id = ? AND cm.activo = 1
        GROUP BY cm.id
        ORDER BY cm.creado_en DESC`,
       [empresa_id]
@@ -359,11 +399,13 @@ router.get('/mallas/:id', authenticateToken, async (req, res) => {
        LEFT JOIN usuarios u ON e.usuario_id = u.id
        LEFT JOIN instancias_turno it ON at.instancia_turno_id = it.id
        LEFT JOIN plantillas_turno pt ON it.plantilla_id = pt.id
-       LEFT JOIN configuraciones_malla_turnos cmt ON pt.id = cmt.plantilla_id AND cmt.configuracion_id = ?
+       JOIN configuraciones_malla_turnos cmt ON pt.id = cmt.plantilla_id AND cmt.configuracion_id = ?
        WHERE pt.id IS NOT NULL
+         AND (? IS NULL OR it.fecha >= ?)
+         AND (? IS NULL OR it.fecha <= ?)
        ORDER BY empleado_nombre ASC, it.fecha ASC
        LIMIT 1000`,
-      [id]
+      [id, config.fecha_inicio_vigencia, config.fecha_inicio_vigencia, config.fecha_fin_vigencia, config.fecha_fin_vigencia]
     );
 
     return res.json({
@@ -380,6 +422,181 @@ router.get('/mallas/:id', authenticateToken, async (req, res) => {
     return res.status(500).json({
       error: 'Error al obtener detalles de la malla'
     });
+  }
+});
+
+// ============================================================================
+// ENDPOINT 3b: Publicar / Despublicar una Malla
+// ============================================================================
+/**
+ * POST /api/planificador/mallas/:id/publicar
+ *
+ * Alterna el estado de publicación de una malla. Cuando está publicada,
+ * los empleados asignados pueden verla y descargarla desde su panel.
+ * Body opcional: { "publicar": true|false } - si se omite, alterna el estado actual.
+ */
+router.post('/mallas/:id/publicar', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userRole = getUserRole(req.auth);
+    const userId = getUserId(req.auth);
+    const userCompany = req.auth.empresa_id;
+
+    if (!isPlanificador(userRole)) {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    const configQuery = isSuperAdmin(userRole)
+      ? 'SELECT * FROM configuraciones_malla WHERE id = ? AND activo = 1'
+      : 'SELECT * FROM configuraciones_malla WHERE id = ? AND empresa_id = ? AND activo = 1';
+    const [configs] = await pool.query(configQuery, isSuperAdmin(userRole) ? [id] : [id, userCompany]);
+
+    if (configs.length === 0) {
+      return res.status(404).json({ error: 'Malla no encontrada' });
+    }
+
+    const config = configs[0];
+    if (!checkCompanyAccess(userRole, userCompany, config.empresa_id)) {
+      return res.status(403).json({ error: 'No tienes acceso a esta malla' });
+    }
+
+    const nuevoEstado = typeof req.body?.publicar === 'boolean'
+      ? req.body.publicar
+      : !config.publicada;
+
+    await pool.query(
+      `UPDATE configuraciones_malla
+       SET publicada = ?, publicada_en = ?, publicada_por = ?
+       WHERE id = ?`,
+      [nuevoEstado ? 1 : 0, nuevoEstado ? new Date() : null, nuevoEstado ? userId : null, id]
+    );
+
+    await logAction(
+      config.empresa_id,
+      userId,
+      nuevoEstado ? 'publicar_malla' : 'despublicar_malla',
+      'configuraciones_malla',
+      id,
+      {}
+    );
+
+    return res.json({
+      exito: true,
+      publicada: nuevoEstado,
+      mensaje: nuevoEstado ? 'Malla publicada: los empleados ya pueden verla' : 'Malla despublicada'
+    });
+  } catch (error) {
+    console.error('Error publicando malla:', error);
+    return res.status(500).json({ error: 'Error al publicar la malla' });
+  }
+});
+
+// ============================================================================
+// ENDPOINT 3c: Eliminar una Malla (soft delete)
+// ============================================================================
+/**
+ * DELETE /api/planificador/mallas/:id
+ *
+ * Marca la configuración de malla como inactiva (activo = 0).
+ * No borra físicamente instancias/asignaciones ya generadas para preservar el historial.
+ */
+router.delete('/mallas/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userRole = getUserRole(req.auth);
+    const userId = getUserId(req.auth);
+    const userCompany = req.auth.empresa_id;
+
+    if (!isPlanificador(userRole)) {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
+    const configQuery = isSuperAdmin(userRole)
+      ? 'SELECT * FROM configuraciones_malla WHERE id = ? AND activo = 1'
+      : 'SELECT * FROM configuraciones_malla WHERE id = ? AND empresa_id = ? AND activo = 1';
+    const [configs] = await pool.query(configQuery, isSuperAdmin(userRole) ? [id] : [id, userCompany]);
+
+    if (configs.length === 0) {
+      return res.status(404).json({ error: 'Malla no encontrada' });
+    }
+
+    const config = configs[0];
+    if (!checkCompanyAccess(userRole, userCompany, config.empresa_id)) {
+      return res.status(403).json({ error: 'No tienes acceso a esta malla' });
+    }
+
+    // IMPORTANTE: 'configuraciones_malla' es la MISMA plantilla que administra el Admin
+    // de Empresa (pestaña Plantillas/Modalidades). Eliminar una "malla generada" NO debe
+    // desactivar esa configuración base, solo debe borrar el calendario ya generado
+    // (instancias_turno + asignaciones_turno) para poder regenerarlo desde cero.
+    const connection = await pool.getConnection();
+    let instanciasEliminadas = 0;
+    try {
+      await connection.beginTransaction();
+
+      const [plantillas] = await connection.query(
+        `SELECT DISTINCT pt.id
+         FROM configuraciones_malla_turnos cmt
+         JOIN plantillas_turno pt ON pt.id = cmt.plantilla_id
+         WHERE cmt.configuracion_id = ? AND pt.empresa_id = ?`,
+        [id, config.empresa_id]
+      );
+      const plantillaIds = plantillas.map(p => p.id);
+
+      if (plantillaIds.length > 0) {
+        const placeholders = plantillaIds.map(() => '?').join(',');
+        const rangoVigencia = config.fecha_inicio_vigencia && config.fecha_fin_vigencia;
+
+        const [instancias] = await connection.query(
+          `SELECT id FROM instancias_turno
+           WHERE plantilla_id IN (${placeholders})
+           ${rangoVigencia ? 'AND fecha BETWEEN ? AND ?' : ''}`,
+          rangoVigencia
+            ? [...plantillaIds, config.fecha_inicio_vigencia, config.fecha_fin_vigencia]
+            : plantillaIds
+        );
+        const instanciaIds = instancias.map(i => i.id);
+
+        if (instanciaIds.length > 0) {
+          const instanciaPlaceholders = instanciaIds.map(() => '?').join(',');
+          await connection.query(
+            `DELETE FROM asignaciones_turno WHERE instancia_turno_id IN (${instanciaPlaceholders})`,
+            instanciaIds
+          );
+          const [resultado] = await connection.query(
+            `DELETE FROM instancias_turno WHERE id IN (${instanciaPlaceholders})`,
+            instanciaIds
+          );
+          instanciasEliminadas = resultado.affectedRows;
+        }
+      }
+
+      // Limpiar vigencia y despublicar; la configuración base queda intacta y activa
+      await connection.query(
+        `UPDATE configuraciones_malla
+         SET publicada = 0, publicada_en = NULL, publicada_por = NULL,
+             fecha_inicio_vigencia = NULL, fecha_fin_vigencia = NULL
+         WHERE id = ?`,
+        [id]
+      );
+
+      await connection.commit();
+    } catch (innerError) {
+      await connection.rollback();
+      throw innerError;
+    } finally {
+      connection.release();
+    }
+
+    await logAction(config.empresa_id, userId, 'eliminar_calendario_malla', 'configuraciones_malla', id, { instanciasEliminadas });
+
+    return res.json({
+      exito: true,
+      mensaje: `Calendario de la malla eliminado (${instanciasEliminadas} turnos removidos). La configuración sigue disponible para generar de nuevo.`
+    });
+  } catch (error) {
+    console.error('Error eliminando malla:', error);
+    return res.status(500).json({ error: 'Error al eliminar la malla' });
   }
 });
 
