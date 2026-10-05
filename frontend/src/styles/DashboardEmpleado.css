@@ -1,7 +1,16 @@
 /* ========== DASHBOARD EMPLEADO ========== */
 
+.empleado-dashboard,
+.empleado-dashboard *,
+.empleado-dashboard *::before,
+.empleado-dashboard *::after {
+  box-sizing: border-box;
+}
+
 .empleado-dashboard {
   min-height: 100vh;
+  max-width: 100vw;
+  overflow-x: hidden;
   background: linear-gradient(135deg, #0a0e27 0%, #1a2847 100%);
   padding: 2rem;
   color: #f1f5f9;
@@ -9,8 +18,10 @@
 
 .dashboard-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
   margin-bottom: 2rem;
   padding-bottom: 1.5rem;
   border-bottom: 2px solid rgba(147, 197, 253, 0.2);
@@ -24,7 +35,8 @@
 
 .empleado-info-header {
   display: flex;
-  gap: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
   font-size: 1rem;
   color: #cbd5e1;
 }
@@ -130,6 +142,8 @@
   border: 1px solid rgba(147, 197, 253, 0.2);
   border-radius: 12px;
   padding: 2rem;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .malla-section h2,
@@ -296,5 +310,277 @@
 
   .turnos-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ========== CALENDARIO DE MALLA (estilo similar al del Planificador) ========== */
+
+.detail-calendar-container {
+  overflow-x: auto;
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(147, 197, 253, 0.2);
+}
+
+.detail-roster-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 600px;
+  font-size: 0.85rem;
+}
+
+.detail-roster-table thead th {
+  background: rgba(147, 197, 253, 0.1);
+  color: #93c5fd;
+  padding: 0.6rem 0.5rem;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  border-bottom: 2px solid rgba(147, 197, 253, 0.2);
+  white-space: nowrap;
+}
+
+.detail-employee-col {
+  text-align: left !important;
+  min-width: 160px;
+  position: sticky;
+  left: 0;
+  background: rgba(10, 14, 39, 0.95);
+  z-index: 2;
+}
+
+.detail-date-col {
+  min-width: 60px;
+}
+
+.detail-roster-table tbody td {
+  padding: 0.5rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.08);
+}
+
+.detail-employee-name {
+  text-align: left !important;
+  font-weight: 600;
+  color: #e2e8f0;
+  position: sticky;
+  left: 0;
+  background: rgba(10, 14, 39, 0.95);
+  z-index: 1;
+}
+
+.detail-roster-cell.detail-assigned {
+  background: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+  font-weight: 600;
+}
+
+.detail-roster-cell.detail-rest {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+}
+
+.detail-roster-table tbody tr.mi-turno {
+  outline: 2px solid #60a5fa;
+  outline-offset: -2px;
+}
+
+.detail-roster-table tbody tr.mi-turno .detail-employee-name {
+  color: #93c5fd;
+}
+
+/* ========== TARJETAS DE CONFIGURACIÓN DE MALLA (igual al Planificador) ========== */
+
+.detail-modal-section {
+  margin-bottom: 1.5rem;
+}
+
+.detail-modal-section h3 {
+  color: #93c5fd;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.2);
+}
+
+.detail-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.detail-modal-item {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+}
+
+.detail-modal-item label {
+  display: block;
+  color: #86efac;
+  font-size: 0.68rem;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.detail-modal-item p {
+  margin: 0;
+  color: #f1f5f9;
+  font-size: 0.9rem;
+}
+
+.detail-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.detail-modal-table thead {
+  background: rgba(147, 197, 253, 0.1);
+}
+
+.detail-modal-table th {
+  color: #93c5fd;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid rgba(147, 197, 253, 0.25);
+}
+
+.detail-modal-table td {
+  color: #e2e8f0;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.08);
+}
+
+.detail-modal-table tbody tr:hover {
+  background: rgba(147, 197, 253, 0.08);
+}
+
+/* ========== CALENDARIO TIPO HOJA (Mis Turnos) ========== */
+
+.calendario-mes-card {
+  margin-bottom: 2.5rem;
+}
+
+.calendario-mes-card h2 {
+  color: #93c5fd;
+  margin-bottom: 1rem;
+  text-transform: capitalize;
+}
+
+.calendario-hoja {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.calendario-dias-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.calendario-dia-nombre {
+  text-align: center;
+  font-weight: 700;
+  color: #93c5fd;
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.calendario-semanas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.calendario-semana-fila {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+}
+
+.calendario-celda {
+  min-height: 90px;
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  border: 1px solid rgba(147, 197, 253, 0.12);
+  background: rgba(30, 41, 59, 0.4);
+}
+
+.calendario-celda-vacia {
+  background: transparent;
+  border: none;
+}
+
+.calendario-celda-numero {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #cbd5e1;
+}
+
+.calendario-celda-turno {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.calendario-celda-turno .calendario-celda-numero {
+  color: #86efac;
+}
+
+.calendario-celda-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.calendario-celda-turno-nombre {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #86efac;
+}
+
+.calendario-celda-turno-hora {
+  font-size: 0.72rem;
+  color: #a7f3d0;
+}
+
+.calendario-celda-descanso {
+  background: rgba(100, 116, 139, 0.1);
+}
+
+.calendario-celda-descanso-texto {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .calendario-celda {
+    min-height: 60px;
+    padding: 0.3rem;
+  }
+
+  .calendario-celda-turno-nombre,
+  .calendario-celda-turno-hora {
+    font-size: 0.65rem;
+  }
+
+  .calendario-dia-nombre {
+    font-size: 0.7rem;
   }
 }

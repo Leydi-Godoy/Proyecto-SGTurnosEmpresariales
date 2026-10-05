@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react'
 import './MallasTurnos.css'
 
+async function parseJsonSafe(response) {
+  const texto = await response.text()
+  try {
+    return texto ? JSON.parse(texto) : {}
+  } catch {
+    throw new Error(
+      `El servidor no respondió con datos válidos (HTTP ${response.status}). ` +
+      'Verifica que el backend esté corriendo y actualizado.'
+    )
+  }
+}
+
 export default function MallasTurnos() {
   const [mallas, setMallas] = useState([])
   const [configuraciones, setConfiguraciones] = useState([])
@@ -24,7 +36,9 @@ export default function MallasTurnos() {
 
   const [generadorForm, setGeneradorForm] = useState({
     configuracion_id: '',
+    mes: '',
     fecha_inicio: '',
+    fecha_fin: '',
     cantidad_semanas: 4,
     tipo_distribucion: 'equilibrada',
     pautas_seleccionadas: [],
@@ -105,6 +119,25 @@ export default function MallasTurnos() {
     }
   }
 
+  function handleSeleccionarMes(valorMes) {
+    if (!valorMes) {
+      setGeneradorForm(current => ({ ...current, mes: '', fecha_inicio: '', fecha_fin: '' }))
+      return
+    }
+    const [anioStr, mesStr] = valorMes.split('-')
+    const anio = Number(anioStr)
+    const mesIndice = Number(mesStr) - 1 // 0-based
+    const primerDia = new Date(Date.UTC(anio, mesIndice, 1))
+    const ultimoDia = new Date(Date.UTC(anio, mesIndice + 1, 0)) // día 0 del mes siguiente = último día del mes actual
+    const formatear = (fecha) => fecha.toISOString().slice(0, 10)
+    setGeneradorForm(current => ({
+      ...current,
+      mes: valorMes,
+      fecha_inicio: formatear(primerDia),
+      fecha_fin: formatear(ultimoDia),
+    }))
+  }
+
   async function seleccionarConfiguracion(id) {
     const configuracionBase = configuraciones.find(config => String(config.id) === id)
     setGeneradorForm(current => ({
@@ -138,10 +171,21 @@ export default function MallasTurnos() {
     setError('')
     setSuccess('')
 
-    if (!generadorForm.configuracion_id || !generadorForm.fecha_inicio || !generadorForm.cantidad_semanas) {
-      setError('Configuración, fecha de inicio y cantidad de semanas son obligatorios')
+    if (!generadorForm.configuracion_id || !generadorForm.fecha_inicio || !generadorForm.fecha_fin) {
+      setError('Configuración y mes a generar son obligatorios')
       return
     }
+
+    const inicio = new Date(`${generadorForm.fecha_inicio}T00:00:00Z`)
+    const fin = new Date(`${generadorForm.fecha_fin}T00:00:00Z`)
+    if (fin < inicio) {
+      setError('La fecha de fin debe ser posterior o igual a la fecha de inicio')
+      return
+    }
+
+    // Calcular cuántas semanas completas cubre el rango (el backend corta exactamente en fecha_fin)
+    const diasRango = Math.round((fin - inicio) / 86400000) + 1
+    const semanasCalculadas = Math.max(1, Math.ceil(diasRango / 7))
 
     try {
       setGenerando(true)
@@ -156,7 +200,8 @@ export default function MallasTurnos() {
           empresa_id: user.empresa_id || user.Id_usuario,
           configuracion_id: Number(generadorForm.configuracion_id),
           fecha_inicio: generadorForm.fecha_inicio,
-          cantidad_semanas: Number(generadorForm.cantidad_semanas),
+          fecha_fin: generadorForm.fecha_fin,
+          cantidad_semanas: semanasCalculadas,
           tipoDistribucion: generadorForm.tipo_distribucion || 'equilibrada',
           pautasSeleccionadas: generadorForm.pautas_seleccionadas?.length > 0 
             ? generadorForm.pautas_seleccionadas.map(Number)
@@ -178,7 +223,9 @@ export default function MallasTurnos() {
       setShowGenerador(false)
       setGeneradorForm({
         configuracion_id: '',
+        mes: '',
         fecha_inicio: '',
+        fecha_fin: '',
         cantidad_semanas: 4,
         tipo_distribucion: 'equilibrada',
         pautas_seleccionadas: [],
@@ -218,22 +265,49 @@ export default function MallasTurnos() {
     setTimeout(() => setSuccess(''), 3000)
   }
 
-  function handleDelete(id) {
-    if (confirm('¿Estás seguro de que deseas eliminar esta malla?')) {
-      setMallas(mallas.filter((m) => m.id !== id))
+  async function handleDelete(id) {
+    if (!confirm('¿Eliminar el calendario generado de esta malla? La configuración base (empleados, turnos, horas) seguirá disponible para volver a generarla cuando quieras.')) return
+    setError('')
+    setSuccess('')
+    try {
+      const response = await fetch(`/api/planificador/mallas/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await parseJsonSafe(response)
+      if (!response.ok) throw new Error(data.error || 'Error al eliminar la malla')
+
       setSuccess('Malla eliminada')
+      await loadMallas()
       setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      console.error('Error eliminando malla:', err)
+      setError('Error: ' + err.message)
     }
   }
 
-  function handlePublish(id) {
-    setMallas(
-      mallas.map((m) =>
-        m.id === id ? { ...m, estado: m.estado === 'publicada' ? 'borrador' : 'publicada' } : m
-      )
-    )
-    setSuccess('Estado de malla actualizado')
-    setTimeout(() => setSuccess(''), 3000)
+  async function handlePublish(id, publicarActual) {
+    setError('')
+    setSuccess('')
+    try {
+      const response = await fetch(`/api/planificador/mallas/${id}/publicar`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ publicar: !publicarActual })
+      })
+      const data = await parseJsonSafe(response)
+      if (!response.ok) throw new Error(data.error || 'Error al publicar la malla')
+
+      setSuccess(data.mensaje || 'Estado de publicación actualizado')
+      await loadMallas()
+      setTimeout(() => setSuccess(''), 4000)
+    } catch (err) {
+      console.error('Error publicando malla:', err)
+      setError('Error: ' + err.message)
+    }
   }
 
   async function handleAsignarAutomaticamente(e) {
@@ -366,14 +440,19 @@ export default function MallasTurnos() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="fecha_gen">Fecha de Inicio *</label>
+                <label htmlFor="mes_gen">Mes a generar *</label>
                 <input
-                  id="fecha_gen"
-                  type="date"
+                  id="mes_gen"
+                  type="month"
                   required
-                  value={generadorForm.fecha_inicio}
-                  onChange={(e) => setGeneradorForm({ ...generadorForm, fecha_inicio: e.target.value })}
+                  value={generadorForm.mes}
+                  onChange={(e) => handleSeleccionarMes(e.target.value)}
                 />
+                <small className="field-hint">
+                  {generadorForm.fecha_inicio && generadorForm.fecha_fin
+                    ? `Se generará del ${new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${generadorForm.fecha_inicio}T00:00:00Z`))} al ${new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${generadorForm.fecha_fin}T00:00:00Z`))} (todo el mes, sin importar si tiene 4 o 5 semanas).`
+                    : 'Selecciona el mes completo que quieres cubrir con esta malla.'}
+                </small>
               </div>
             </div>
 
@@ -407,19 +486,6 @@ export default function MallasTurnos() {
 
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="semanas">Cantidad de Semanas *</label>
-                <input
-                  id="semanas"
-                  type="number"
-                  min="1"
-                  max="52"
-                  required
-                  value={generadorForm.cantidad_semanas}
-                  onChange={(e) => setGeneradorForm({ ...generadorForm, cantidad_semanas: Number(e.target.value) })}
-                />
-              </div>
-
-              <div className="form-group">
                 <label htmlFor="distribucion">Tipo de Distribución</label>
                 <select
                   id="distribucion"
@@ -448,7 +514,9 @@ export default function MallasTurnos() {
                   setConfiguracionSeleccionada(null)
                   setGeneradorForm({
                     configuracion_id: '',
+                    mes: '',
                     fecha_inicio: '',
+                    fecha_fin: '',
                     cantidad_semanas: 4,
                     tipo_distribucion: 'equilibrada',
                     pautas_seleccionadas: [],
@@ -662,8 +730,11 @@ export default function MallasTurnos() {
                     {malla.activo ? '✓ Activa' : '○ Inactiva'}
                   </span>
                 </div>
-
                 <div className="malla-info">
+                  <p>
+                    <span className="info-label">Publicación:</span>
+                    {malla.publicada ? '📢 Publicada' : '🔒 Borrador (no visible para empleados)'}
+                  </p>
                   <p>
                     <span className="info-label">Empleados:</span>
                     {malla.cantidad_empleados}
@@ -693,9 +764,16 @@ export default function MallasTurnos() {
                     👁️ Detalles
                   </button>
                   <button
+                    className="action-btn publish"
+                    onClick={() => handlePublish(malla.id, malla.publicada)}
+                    title={malla.publicada ? 'Despublicar malla' : 'Publicar malla para empleados'}
+                  >
+                    {malla.publicada ? '📢 Despublicar' : '📤 Publicar'}
+                  </button>
+                  <button
                     className="action-btn delete"
                     onClick={() => handleDelete(malla.id)}
-                    title="Eliminar malla"
+                    title="Eliminar calendario generado (la configuración base no se borra)"
                   >
                     🗑️ Eliminar
                   </button>
@@ -784,22 +862,36 @@ export default function MallasTurnos() {
                   {modalData.asignaciones?.datos?.length > 0 ? (
                     <div className="detail-calendar-container">
                       {(() => {
+                        // Normaliza una fecha (puede venir como Date, string ISO o 'YYYY-MM-DD HH:mm:ss') a 'YYYY-MM-DD'
+                        const normalizarFecha = (valor) => {
+                          if (!valor) return null
+                          if (valor instanceof Date) {
+                            if (isNaN(valor.getTime())) return null
+                            return valor.toISOString().slice(0, 10)
+                          }
+                          const texto = String(valor)
+                          const match = texto.match(/^(\d{4}-\d{2}-\d{2})/)
+                          return match ? match[1] : null
+                        }
+
                         // Agrupar asignaciones por empleado
                         const porEmpleado = {};
                         const todasLasFechas = new Set();
                         
                         modalData.asignaciones.datos.forEach((asig) => {
+                          const fechaNormalizada = normalizarFecha(asig.fecha)
+                          if (!fechaNormalizada) return
                           if (!porEmpleado[asig.empleado_id]) {
                             porEmpleado[asig.empleado_id] = {
                               nombre: asig.empleado_nombre,
                               asignaciones: {}
                             };
                           }
-                          porEmpleado[asig.empleado_id].asignaciones[asig.fecha] = {
+                          porEmpleado[asig.empleado_id].asignaciones[fechaNormalizada] = {
                             turno: asig.turno_nombre,
                             duracion: asig.duracion_horas
                           };
-                          todasLasFechas.add(asig.fecha);
+                          todasLasFechas.add(fechaNormalizada);
                         });
 
                         const fechasOrdenadas = Array.from(todasLasFechas).sort();
@@ -811,8 +903,8 @@ export default function MallasTurnos() {
                               <tr>
                                 <th className="detail-employee-col">Empleado</th>
                                 {fechasOrdenadas.slice(0, 31).map((fecha) => (
-                                  <th key={fecha} className="detail-date-col" title={new Date(fecha).toLocaleDateString('es-CO')}>
-                                    {new Date(fecha).getDate()}
+                                  <th key={fecha} className="detail-date-col" title={fecha}>
+                                    {new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short', timeZone: 'UTC' }).format(new Date(`${fecha}T00:00:00Z`))}
                                   </th>
                                 ))}
                               </tr>
