@@ -134,7 +134,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
     const [configuraciones] = await pool.query(
       `${CONFIGURACION_MALLA_CON_USUARIOS}
-       WHERE cm.empresa_id = ? ORDER BY cm.creado_en DESC`,
+       WHERE cm.empresa_id = ? AND cm.activo = 1 ORDER BY cm.creado_en DESC`,
       [empresaId]
     );
 
@@ -358,15 +358,15 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     const config = configs[0];
 
-    // Eliminar turnos asociados (cascada manual)
-    await pool.query('DELETE FROM configuraciones_malla_turnos WHERE configuracion_id = ?', [id]);
-    
-    // Eliminar configuración
-    await pool.query('DELETE FROM configuraciones_malla WHERE id = ?', [id]);
+    // Soft-delete: no borramos físicamente la configuración ni sus turnos
+    // (eso es responsabilidad exclusiva del Planificador al borrar el
+    // calendario generado). Aquí solo la desactivamos para que deje de
+    // aparecer disponible, preservando el historial/datos.
+    await pool.query('UPDATE configuraciones_malla SET activo = 0 WHERE id = ?', [id]);
 
-    await logAction(config.empresa_id, userId, 'eliminar_configuracion_malla', 'configuraciones_malla', id, {});
+    await logAction(config.empresa_id, userId, 'desactivar_configuracion_malla', 'configuraciones_malla', id, {});
 
-    res.json({ message: 'Configuración eliminada exitosamente' });
+    res.json({ message: 'Configuración desactivada exitosamente' });
   } catch (error) {
     console.error('Error deleting configuración:', error);
     res.status(500).json({ error: 'Error al eliminar configuración' });

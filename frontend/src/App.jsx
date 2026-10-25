@@ -87,6 +87,9 @@ function App() {
 
   useEffect(() => {
     if (!user) return
+    const role = String(user.Id_rol ?? user.role ?? '').trim().toLowerCase()
+    const canListUsers = ['1', '2', 'super_admin', 'admin_empresa'].includes(role)
+    if (!canListUsers) return
     fetch('/api/users', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
       .then(async (response) => {
         const data = await response.json()

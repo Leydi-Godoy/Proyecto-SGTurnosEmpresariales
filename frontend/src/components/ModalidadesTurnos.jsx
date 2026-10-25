@@ -103,6 +103,48 @@ export default function ModalidadesTurnos() {
     setFormMalla(current => ({ ...current, turnos: current.turnos.filter((_, turnoIndex) => turnoIndex !== index) }));
   };
 
+  const eliminarModalidad = async (modalidad) => {
+    if (!window.confirm(`¿Desactivar la modalidad "${modalidad.nombre}"? Dejará de estar disponible para nuevas mallas.`)) return;
+    setError('');
+    setSuccess('');
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/plantillas-turno/${modalidad.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'No se pudo eliminar la modalidad');
+      setModalidades(prev => prev.filter(m => m.id !== modalidad.id));
+      setSuccess('Modalidad eliminada exitosamente');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const eliminarMalla = async (configuracion) => {
+    if (!window.confirm(`¿Eliminar la configuración de malla "${configuracion.nombre}"? Esta acción no se puede deshacer desde aquí.`)) return;
+    setError('');
+    setSuccess('');
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/configuraciones-malla/${configuracion.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'No se pudo eliminar la configuración');
+      setConfiguraciones(prev => prev.filter(c => c.id !== configuracion.id));
+      setSuccess('Configuración eliminada exitosamente');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const editarMalla = async (configuracion) => {
     try {
       setLoading(true);
@@ -237,7 +279,7 @@ export default function ModalidadesTurnos() {
                       });
                       setShowFormModalidad(true);
                     }}>Editar</button>
-                  <button className="btn-small delete">Eliminar</button>
+                  <button className="btn-small delete" onClick={() => eliminarModalidad(m)} disabled={loading}>Eliminar</button>
                 </div>
               </div>
             ))
@@ -364,7 +406,7 @@ export default function ModalidadesTurnos() {
                 </div>
                 <div className="card-actions">
                   <button className="btn-small edit" onClick={() => editarMalla(c)} disabled={loading}>Editar</button>
-                  <button className="btn-small delete">Eliminar</button>
+                  <button className="btn-small delete" onClick={() => eliminarMalla(c)} disabled={loading}>Eliminar</button>
                 </div>
               </div>
             ))
