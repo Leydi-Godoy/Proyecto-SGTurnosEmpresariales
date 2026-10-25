@@ -57,96 +57,409 @@ export default function DashboardEmpleado() {
     cargarDatos()
   }, [cargarDatos])
 
+  const descargarExcelCalendario = async () => {
+    const ExcelJS = (await import('exceljs')).default
+    const wb = new ExcelJS.Workbook()
+    const solido = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } })
+    const borde = (argb) => ({ style: 'thin', color: { argb } })
+    const bordes = (argb) => ({ top: borde(argb), left: borde(argb), bottom: borde(argb), right: borde(argb) })
+
+    const turnosPorFecha = {}
+    misTurnos.forEach((t) => {
+      const m = String(t.fecha || '').match(/^(\d{4}-\d{2}-\d{2})/)
+      if (m) turnosPorFecha[m[1]] = t
+    })
+    const meses = [...new Set(Object.keys(turnosPorFecha).map((f) => f.slice(0, 7)))].sort()
+    const nombresDias = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
+
+    meses.forEach((claveMes) => {
+      const [anio, mes] = claveMes.split('-').map(Number)
+      const nombreMes = new Intl.DateTimeFormat('es-CO', { month: 'long', timeZone: 'UTC' })
+        .format(new Date(Date.UTC(anio, mes - 1, 1)))
+      const titulo = `${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)} ${anio}`
+      const ws = wb.addWorksheet(titulo, { views: [{ showGridLines: false }] })
+      ws.columns = Array.from({ length: 7 }, () => ({ width: 22 }))
+
+      ws.mergeCells('A1:E1')
+      Object.assign(ws.getCell('A1'), { value: `Malla de ${titulo}` })
+      ws.getCell('A1').font = { name: 'Calibri', size: 18, bold: true, color: { argb: 'FF93C5FD' } }
+      ws.getCell('A1').alignment = { vertical: 'middle' }
+      ws.mergeCells('F1:G1')
+      ws.getCell('F1').value = empleadoInfo
+        ? `${empleadoInfo.nombre || ''}${empleadoInfo.especialidad ? ' - ' + empleadoInfo.especialidad : ''}`
+        : ''
+      ws.getCell('F1').font = { size: 10, color: { argb: 'FFCBD5E1' } }
+      ws.getCell('F1').alignment = { horizontal: 'right', vertical: 'middle' }
+      ws.getRow(1).height = 30
+
+      const filaHeader = ws.getRow(3)
+      nombresDias.forEach((d, i) => {
+        const c = filaHeader.getCell(i + 1)
+        c.value = d
+        c.font = { bold: true, size: 11, color: { argb: 'FF93C5FD' } }
+        c.alignment = { horizontal: 'center', vertical: 'middle' }
+        c.fill = solido('FF1E293B')
+        c.border = bordes('FF334155')
+      })
+      filaHeader.height = 22
+
+      const inicio = (new Date(Date.UTC(anio, mes - 1, 1)).getUTCDay() + 6) % 7
+      const totalDias = new Date(Date.UTC(anio, mes, 0)).getUTCDate()
+      const filas = Math.ceil((inicio + totalDias) / 7)
+
+      for (let f = 0; f < filas; f++) ws.getRow(4 + f).height = 62
+      for (let pos = 0; pos < filas * 7; pos++) {
+        const dia = pos - inicio + 1
+        const celda = ws.getRow(4 + Math.floor(pos / 7)).getCell((pos % 7) + 1)
+        if (dia < 1 || dia > totalDias) {
+          celda.fill = solido('FF0F172A')
+          continue
+        }
+        const fecha = `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
+        const turno = turnosPorFecha[fecha]
+        const nombre = turno ? String(turno.nombre_turno || turno.turno || '') : ''
+        const horario = turno ? `${turno.hora_inicio?.slice(0, 5) || ''} - ${turno.hora_fin?.slice(0, 5) || ''}` : ''
+
+        celda.value = {
+          richText: turno
+            ? [
+                { text: `${dia}\n`, font: { bold: true, size: 12, color: { argb: 'FF86EFAC' } } },
+                { text: `${nombre}\n`, font: { bold: true, size: 10, color: { argb: 'FF86EFAC' } } },
+                { text: horario, font: { size: 9, color: { argb: 'FFA7F3D0' } } }
+              ]
+            : [
+                { text: `${dia}\n`, font: { bold: true, size: 12, color: { argb: 'FFCBD5E1' } } },
+                { text: 'Descanso', font: { italic: true, size: 9, color: { argb: 'FF64748B' } } }
+              ]
+        }
+        celda.alignment = { vertical: 'top', horizontal: 'left', wrapText: true }
+        celda.fill = solido(turno ? 'FF16352F' : 'FF182133')
+        celda.border = bordes(turno ? 'FF2A6B4A' : 'FF243247')
+      }
+
+      // Fondo oscuro como en la plataforma
+      for (let r = 1; r <= 4 + filas; r++) {
+        for (let c = 1; c <= 7; c++) {
+          const cell = ws.getRow(r).getCell(c)
+          if (!cell.fill || cell.fill.type !== 'pattern') cell.fill = solido('FF0F172A')
+        }
+      }
+      ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 1 }
+    })
+
+    const buffer = await wb.xlsx.writeBuffer()
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `mis_turnos_${new Date().toISOString().split('T')[0]}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Estructura de la malla completa igual a la de pantalla: empleados x fechas, agrupada por mes
+  const construirRoster = () => {
+    const porEmpleado = {}
+    const fechas = new Set()
+    ;(malla?.turnos || []).forEach((turno) => {
+      const m = String(turno.fecha || '').match(/^(\d{4}-\d{2}-\d{2})/)
+      if (!m) return
+      const nombre = turno.nombre_empleado || 'Sin asignar'
+      if (!porEmpleado[nombre]) porEmpleado[nombre] = { nombre, asignaciones: {} }
+      porEmpleado[nombre].asignaciones[m[1]] = {
+        turno: turno.nombre_turno || turno.turno,
+        duracion: turno.duracion_horas
+      }
+      fechas.add(m[1])
+    })
+    const empleados = Object.values(porEmpleado).sort((a, b) => a.nombre.localeCompare(b.nombre))
+    const meses = {}
+    ;[...fechas].sort().forEach((f) => {
+      const k = f.slice(0, 7)
+      if (!meses[k]) meses[k] = []
+      meses[k].push(f)
+    })
+    const abreviatura = (asig) => asig
+      ? `${asig.duracion ?? '8'}${String(asig.turno || '').toLowerCase().includes('noche') ? 'N' : 'D'}`
+      : 'DES'
+    const tituloMes = (k) => {
+      const [a, m] = k.split('-').map(Number)
+      const n = new Intl.DateTimeFormat('es-CO', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(a, m - 1, 1)))
+      return `${n.charAt(0).toUpperCase() + n.slice(1)} ${a}`
+    }
+    return { empleados, meses, abreviatura, tituloMes }
+  }
+
+  const descargarExcelMallaCompleta = async () => {
+    const ExcelJS = (await import('exceljs')).default
+    const { empleados, meses, abreviatura, tituloMes } = construirRoster()
+    const wb = new ExcelJS.Workbook()
+    const solido = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } })
+    const borde = (argb) => ({ style: 'thin', color: { argb } })
+    const bordes = (argb) => ({ top: borde(argb), left: borde(argb), bottom: borde(argb), right: borde(argb) })
+    const miNombre = empleadoInfo?.nombre
+    const cfg = malla?.configuracion
+
+    Object.keys(meses).forEach((claveMes) => {
+      const fechas = meses[claveMes]
+      const ws = wb.addWorksheet(tituloMes(claveMes), { views: [{ showGridLines: false, state: 'frozen', xSplit: 1, ySplit: 5 }] })
+      const totalCols = fechas.length + 1
+      ws.getColumn(1).width = 34
+      for (let c = 2; c <= totalCols; c++) ws.getColumn(c).width = 7
+
+      ws.mergeCells(1, 1, 1, totalCols)
+      ws.getCell(1, 1).value = `Malla Completa - ${tituloMes(claveMes)}`
+      ws.getCell(1, 1).font = { size: 18, bold: true, color: { argb: 'FF93C5FD' } }
+      ws.getRow(1).height = 30
+      ws.mergeCells(2, 1, 2, totalCols)
+      ws.getCell(2, 1).value = cfg
+        ? `${cfg.nombre || ''}${cfg.empresa_nombre ? ' · ' + cfg.empresa_nombre : ''} · ${cfg.cantidad_empleados} empleados · ${cfg.horas_por_semana}h/semana · ${cfg.horas_por_mes}h/mes`
+        : ''
+      ws.getCell(2, 1).font = { size: 10, color: { argb: 'FFCBD5E1' } }
+      ws.mergeCells(3, 1, 3, totalCols)
+      ws.getCell(3, 1).value = 'D = turno diurno · N = turno nocturno (el número son las horas) · DES = descanso'
+      ws.getCell(3, 1).font = { size: 9, italic: true, color: { argb: 'FF64748B' } }
+
+      const h = ws.getRow(5)
+      h.height = 24
+      const hEmp = h.getCell(1)
+      hEmp.value = 'Empleado'
+      fechas.forEach((f, i) => {
+        const c = h.getCell(i + 2)
+        c.value = new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short', timeZone: 'UTC' }).format(new Date(`${f}T00:00:00Z`))
+      })
+      for (let c = 1; c <= totalCols; c++) {
+        const cell = h.getCell(c)
+        cell.font = { bold: true, size: c === 1 ? 11 : 9, color: { argb: 'FF93C5FD' } }
+        cell.fill = solido('FF1E293B')
+        cell.alignment = { horizontal: c === 1 ? 'left' : 'center', vertical: 'middle', wrapText: true }
+        cell.border = bordes('FF334155')
+      }
+
+      empleados.forEach((emp, idx) => {
+        const row = ws.getRow(6 + idx)
+        row.height = 22
+        const esMio = emp.nombre === miNombre
+        const nombreCell = row.getCell(1)
+        nombreCell.value = emp.nombre
+        nombreCell.font = { bold: true, size: 11, color: { argb: esMio ? 'FF93C5FD' : 'FFE2E8F0' } }
+        nombreCell.fill = solido('FF0F172A')
+        nombreCell.alignment = { vertical: 'middle', indent: 1 }
+        nombreCell.border = bordes(esMio ? 'FF60A5FA' : 'FF243247')
+        fechas.forEach((f, i) => {
+          const asig = emp.asignaciones[f]
+          const cell = row.getCell(i + 2)
+          cell.value = abreviatura(asig)
+          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+          cell.font = asig
+            ? { bold: true, size: 10, color: { argb: 'FF86EFAC' } }
+            : { size: 9, color: { argb: 'FF64748B' } }
+          cell.fill = solido(asig ? 'FF16352F' : 'FF182133')
+          cell.border = bordes(esMio ? 'FF60A5FA' : asig ? 'FF2A6B4A' : 'FF243247')
+        })
+      })
+
+      // Fondo oscuro en el resto de la hoja visible
+      for (let r = 1; r <= 5 + empleados.length; r++) {
+        for (let c = 1; c <= totalCols; c++) {
+          const cell = ws.getRow(r).getCell(c)
+          if (!cell.fill || cell.fill.type !== 'pattern') cell.fill = solido('FF0F172A')
+        }
+      }
+      ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+    })
+
+    const buffer = await wb.xlsx.writeBuffer()
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `malla_completa_${new Date().toISOString().split('T')[0]}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const descargarPDFMallaCompleta = async () => {
+    const { jsPDF } = await import('jspdf')
+    const { empleados, meses, abreviatura, tituloMes } = construirRoster()
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const W = doc.internal.pageSize.getWidth()
+    const H = doc.internal.pageSize.getHeight()
+    const hex = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]
+    const fill = (c) => doc.setFillColor(...hex(c))
+    const stroke = (c) => doc.setDrawColor(...hex(c))
+    const color = (c) => doc.setTextColor(...hex(c))
+    const miNombre = empleadoInfo?.nombre
+    const cfg = malla?.configuracion
+    const margen = 8
+    const colNombre = 52
+
+    let primera = true
+    Object.keys(meses).forEach((claveMes) => {
+      const fechas = meses[claveMes]
+      const anchoCol = Math.min(8, (W - margen * 2 - colNombre) / fechas.length)
+      const altoFila = 7
+      const filasPorPagina = Math.floor((H - 34 - 12) / altoFila)
+      const paginas = Math.ceil(empleados.length / filasPorPagina) || 1
+
+      for (let p = 0; p < paginas; p++) {
+        if (!primera) doc.addPage()
+        primera = false
+        fill('#0f172a'); doc.rect(0, 0, W, H, 'F')
+
+        color('#93c5fd'); doc.setFont('helvetica', 'bold'); doc.setFontSize(16)
+        doc.text(`Malla Completa - ${tituloMes(claveMes)}`, margen, 12)
+        color('#cbd5e1'); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
+        if (cfg) {
+          doc.text(`${cfg.nombre || ''}${cfg.empresa_nombre ? ' · ' + cfg.empresa_nombre : ''} · ${cfg.cantidad_empleados} empleados · ${cfg.horas_por_semana}h/semana · ${cfg.horas_por_mes}h/mes`, margen, 18)
+        }
+        color('#64748b'); doc.setFontSize(7.5)
+        doc.text('D = diurno · N = nocturno (el número son las horas) · DES = descanso', margen, 23)
+
+        const y0 = 27
+        fill('#1e293b'); stroke('#334155'); doc.setLineWidth(0.2)
+        doc.rect(margen, y0, colNombre, altoFila + 2, 'FD')
+        color('#93c5fd'); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
+        doc.text('Empleado', margen + 2, y0 + 5.5)
+        fechas.forEach((f, i) => {
+          const x = margen + colNombre + i * anchoCol
+          fill('#1e293b'); doc.rect(x, y0, anchoCol, altoFila + 2, 'FD')
+          color('#93c5fd'); doc.setFontSize(6)
+          const d = new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short', timeZone: 'UTC' }).format(new Date(`${f}T00:00:00Z`)).replace('.', '')
+          doc.text(d.split(' '), x + anchoCol / 2, y0 + 3.6, { align: 'center', lineHeightFactor: 1 })
+        })
+
+        empleados.slice(p * filasPorPagina, (p + 1) * filasPorPagina).forEach((emp, idx) => {
+          const y = y0 + altoFila + 2 + idx * altoFila
+          const esMio = emp.nombre === miNombre
+          fill('#0f172a'); stroke(esMio ? '#60a5fa' : '#243247')
+          doc.rect(margen, y, colNombre, altoFila, 'FD')
+          color(esMio ? '#93c5fd' : '#e2e8f0'); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
+          doc.text(doc.splitTextToSize(emp.nombre, colNombre - 4)[0], margen + 2, y + 4.7)
+          fechas.forEach((f, i) => {
+            const asig = emp.asignaciones[f]
+            const x = margen + colNombre + i * anchoCol
+            fill(asig ? '#16352f' : '#182133')
+            stroke(esMio ? '#60a5fa' : asig ? '#2a6b4a' : '#243247')
+            doc.rect(x, y, anchoCol, altoFila, 'FD')
+            color(asig ? '#86efac' : '#64748b')
+            doc.setFont('helvetica', asig ? 'bold' : 'normal'); doc.setFontSize(asig ? 7 : 6)
+            doc.text(abreviatura(asig), x + anchoCol / 2, y + 4.6, { align: 'center' })
+          })
+        })
+      }
+    })
+
+    doc.save(`malla_completa_${new Date().toISOString().split('T')[0]}.pdf`)
+  }
+
   const descargarExcel = async () => {
-    if (!malla || !malla.turnos) {
+    if (activeTab === 'malla-completa') {
+      if (!malla?.turnos?.length) {
+        alert('No hay datos para descargar')
+        return
+      }
+      return descargarExcelMallaCompleta()
+    }
+    if (!misTurnos.length) {
       alert('No hay datos para descargar')
       return
     }
+    return descargarExcelCalendario()
+  }
 
-    const datos = activeTab === 'malla-completa' 
-      ? malla.turnos 
-      : misTurnos
+  // PDF que replica la vista "Mis Turnos": un calendario por mes con los mismos colores
+  const descargarPDFCalendario = async () => {
+    const { jsPDF } = await import('jspdf')
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const W = doc.internal.pageSize.getWidth()
+    const H = doc.internal.pageSize.getHeight()
+    const hex = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]
+    const fill = (c) => doc.setFillColor(...hex(c))
+    const stroke = (c) => doc.setDrawColor(...hex(c))
+    const color = (c) => doc.setTextColor(...hex(c))
 
-    const ws_data = [['Fecha', 'Turno', 'Empleado', 'Especialidad']]
-    
-    datos.forEach(turno => {
-      ws_data.push([
-        turno.fecha || '',
-        turno.nombre_turno || turno.turno || '',
-        turno.nombre_empleado || 'Sin asignar',
-        turno.especialidad || ''
-      ])
+    const turnosPorFecha = {}
+    misTurnos.forEach((t) => {
+      const m = String(t.fecha || '').match(/^(\d{4}-\d{2}-\d{2})/)
+      if (m) turnosPorFecha[m[1]] = t
+    })
+    const meses = [...new Set(Object.keys(turnosPorFecha).map((f) => f.slice(0, 7)))].sort()
+    const nombresDias = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
+
+    meses.forEach((claveMes, idx) => {
+      if (idx > 0) doc.addPage()
+      const [anio, mes] = claveMes.split('-').map(Number)
+      const nombreMes = new Intl.DateTimeFormat('es-CO', { month: 'long', timeZone: 'UTC' })
+        .format(new Date(Date.UTC(anio, mes - 1, 1)))
+
+      fill('#0f172a'); doc.rect(0, 0, W, H, 'F')
+
+      color('#93c5fd'); doc.setFont('helvetica', 'bold'); doc.setFontSize(18)
+      doc.text(`Malla de ${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)} ${anio}`, 10, 14)
+      if (empleadoInfo) {
+        color('#cbd5e1'); doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
+        doc.text(`${empleadoInfo.nombre || ''}${empleadoInfo.especialidad ? ' - ' + empleadoInfo.especialidad : ''}`, W - 10, 14, { align: 'right' })
+      }
+
+      const margen = 10
+      const gap = 1.5
+      const anchoCelda = (W - margen * 2 - gap * 6) / 7
+      const yHeader = 20
+      nombresDias.forEach((d, i) => {
+        color('#93c5fd'); doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
+        doc.text(d, margen + i * (anchoCelda + gap) + anchoCelda / 2, yHeader + 4, { align: 'center' })
+      })
+
+      const primerDia = new Date(Date.UTC(anio, mes - 1, 1))
+      const totalDias = new Date(Date.UTC(anio, mes, 0)).getUTCDate()
+      const inicio = (primerDia.getUTCDay() + 6) % 7
+      const filas = Math.ceil((inicio + totalDias) / 7)
+      const yGrid = yHeader + 7
+      const altoCelda = Math.min(32, (H - yGrid - 10 - gap * (filas - 1)) / filas)
+
+      for (let dia = 1; dia <= totalDias; dia++) {
+        const pos = inicio + dia - 1
+        const x = margen + (pos % 7) * (anchoCelda + gap)
+        const y = yGrid + Math.floor(pos / 7) * (altoCelda + gap)
+        const fecha = `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
+        const turno = turnosPorFecha[fecha]
+
+        fill(turno ? '#16352f' : '#182133')
+        stroke(turno ? '#2a6b4a' : '#243247')
+        doc.setLineWidth(0.25)
+        doc.roundedRect(x, y, anchoCelda, altoCelda, 1.5, 1.5, 'FD')
+
+        color(turno ? '#86efac' : '#cbd5e1'); doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
+        doc.text(String(dia), x + 2, y + 5)
+
+        if (turno) {
+          const nombre = String(turno.nombre_turno || turno.turno || '')
+          color('#86efac'); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
+          doc.text(doc.splitTextToSize(nombre, anchoCelda - 4).slice(0, 2), x + 2, y + 11)
+          color('#a7f3d0'); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5)
+          doc.text(`${turno.hora_inicio?.slice(0, 5) || ''} - ${turno.hora_fin?.slice(0, 5) || ''}`, x + 2, y + altoCelda - 3)
+        } else {
+          color('#64748b'); doc.setFont('helvetica', 'italic'); doc.setFontSize(8)
+          doc.text('Descanso', x + 2, y + 11)
+        }
+      }
     })
 
-    // Crear workbook con XLSX
-    const { default: XLSX } = await import('xlsx')
-    const ws = XLSX.utils.aoa_to_sheet(ws_data)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Turnos')
-    XLSX.writeFile(wb, `turnos_${activeTab}_${new Date().toISOString().split('T')[0]}.xlsx`)
+    doc.save(`mis_turnos_${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
   const descargarPDF = async () => {
-    if (!malla || !malla.turnos) {
+    if (activeTab === 'malla-completa') {
+      if (!malla?.turnos?.length) {
+        alert('No hay datos para descargar')
+        return
+      }
+      return descargarPDFMallaCompleta()
+    }
+    if (!misTurnos.length) {
       alert('No hay datos para descargar')
       return
     }
-
-    const datos = activeTab === 'malla-completa' 
-      ? malla.turnos 
-      : misTurnos
-
-    const { jsPDF } = await import('jspdf')
-    const doc = new jsPDF()
-    const pageHeight = doc.internal.pageSize.getHeight()
-    let yPosition = 10
-
-    // Título
-    doc.setFontSize(16)
-    doc.text(`Malla de Turnos - ${activeTab === 'malla-completa' ? 'Completa' : 'Mis Turnos'}`, 10, yPosition)
-    yPosition += 10
-
-    // Información del empleado
-    if (empleadoInfo) {
-      doc.setFontSize(10)
-      doc.text(`Empleado: ${empleadoInfo.nombre}`, 10, yPosition)
-      yPosition += 5
-      doc.text(`Especialidad: ${empleadoInfo.especialidad}`, 10, yPosition)
-      yPosition += 10
-    }
-
-    // Tabla de datos
-    doc.setFontSize(9)
-    const columnWidths = [30, 35, 50, 40]
-    const headers = ['Fecha', 'Turno', 'Empleado', 'Especialidad']
-
-    // Headers
-    headers.forEach((header, i) => {
-      doc.text(header, 10 + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), yPosition)
-    })
-    yPosition += 6
-
-    // Data rows
-    datos.forEach(turno => {
-      if (yPosition > pageHeight - 15) {
-        doc.addPage()
-        yPosition = 10
-      }
-
-      const row = [
-        turno.fecha || '',
-        turno.nombre_turno || turno.turno || '',
-        turno.nombre_empleado || 'Sin asignar',
-        turno.especialidad || ''
-      ]
-
-      row.forEach((cell, i) => {
-        doc.text(String(cell).substring(0, 15), 10 + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), yPosition)
-      })
-      yPosition += 6
-    })
-
-    doc.save(`turnos_${activeTab}_${new Date().toISOString().split('T')[0]}.pdf`)
+    return descargarPDFCalendario()
   }
 
   if (cargando) {
