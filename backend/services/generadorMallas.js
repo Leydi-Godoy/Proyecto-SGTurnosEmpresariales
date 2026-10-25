@@ -279,6 +279,44 @@ const generadorMallas = {
     const horasSemanaEmpleado = new Map();
     const horasMesEmpleado = new Map();
     let siguienteEmpleado = 0;
+    const turnosMensualesEmpleado = Number(config.turnos_mensuales_empleado || 0);
+    const diasLaborablesMes = diasLaborales * 30.4375 / 7;
+    const tasaDiariaPorTurno = turnosRotacion.length && diasLaborablesMes
+      ? (empleados.length * turnosMensualesEmpleado) / diasLaborablesMes / turnosRotacion.length
+      : 0;
+    const acumuladoCupos = turnosRotacion.map(() => 0);
+    const emitidosPorTurno = turnosRotacion.map(() => 0);
+    const conteoMesEmpleado = new Map();
+    const diasGenerados = [];
+
+    // Objetivo exacto de turnos por empleado en un mes (prorrateado si el período cubre el mes parcialmente)
+    const diasLaborablesEnMes = (anio, mes) => {
+      let total = 0;
+      const ultimo = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+      for (let d = 1; d <= ultimo; d++) {
+        if ((new Date(Date.UTC(anio, mes - 1, d)).getUTCDay() + 6) % 7 < diasLaborales) total++;
+      }
+      return total;
+    };
+    const jornadasPorMes = new Map();
+    const objetivoDelMes = (mesKey) => {
+      if (!turnosMensualesEmpleado) return 0;
+      const [anio, mes] = mesKey.split('-').map(Number);
+      const cubiertos = jornadasPorMes.get(mesKey) || 0;
+      const totalMes = diasLaborablesEnMes(anio, mes);
+      return cubiertos >= totalMes ? turnosMensualesEmpleado : Math.round(turnosMensualesEmpleado * cubiertos / totalMes);
+    };
+    {
+      const f = new Date(fecha);
+      for (let dia = 0; dia < Number(cantidadSemanas) * 7; dia++) {
+        const d = new Date(f);
+        d.setUTCDate(d.getUTCDate() + dia);
+        if (limiteFin && d > limiteFin) break;
+        if ((d.getUTCDay() + 6) % 7 >= diasLaborales) continue;
+        const k = generadorMallas._formatearFecha(d).slice(0, 7);
+        jornadasPorMes.set(k, (jornadasPorMes.get(k) || 0) + 1);
+      }
+    }
 
     for (let dia = 0; dia < Number(cantidadSemanas) * 7; dia++) {
       const fechaActual = new Date(fecha);
@@ -296,27 +334,47 @@ const generadorMallas = {
       semanaInicio.setUTCDate(semanaInicio.getUTCDate() - diaLaboralSemana);
       const semanaKey = generadorMallas._formatearFecha(semanaInicio);
       const empleadosDelDia = new Set();
+      diasGenerados.push({ fecha: fechaFormateada, semanaKey, mesKey: fechaFormateada.slice(0, 7) });
+      // Cupos del día por turno: se calculan para que, en promedio, cada empleado
+      // alcance turnos_mensuales_empleado (cantidad_empleados x turnos / días laborables).
+      const cuposPorTurno = turnosRotacion.map((turno, i) => {
+        acumuladoCupos[i] += tasaDiariaPorTurno;
+        const cupos = Math.max(1, Math.floor(acumuladoCupos[i] + 1e-9) - emitidosPorTurno[i]);
+        emitidosPorTurno[i] += cupos;
+        return cupos;
+      });
+      const slots = [];
+      turnosRotacion.forEach((turno, i) => {
+        for (let c = 0; c < cuposPorTurno[i]; c++) slots.push({ turno, obligatorio: c === 0 });
+      });
 
-      for (const turno of turnosRotacion) {
+      for (const { turno, obligatorio } of slots) {
         let asignado = null;
         let indiceAsignado = -1;
         const horas = Number(turno.duracion_horas);
         const mesKey = fechaFormateada.slice(0, 7);
 
+        // Se elige al empleado disponible con menos horas en el mes para repartir equitativamente
+        let menorHorasMes = Infinity;
         for (let intento = 0; intento < empleados.length; intento++) {
           const indice = (siguienteEmpleado + intento) % empleados.length;
           const candidato = empleados[indice];
           const claveEmpleadoSemana = `${candidato.id}:${semanaKey}`;
           const claveEmpleadoMes = `${candidato.id}:${mesKey}`;
           if (empleadosDelDia.has(candidato.id)) continue;
-          if ((horasSemanaEmpleado.get(claveEmpleadoSemana) || 0) + horas > horasMaximasSemana) continue;
-          if ((horasMesEmpleado.get(claveEmpleadoMes) || 0) + horas > horasMaximasMes) continue;
-          asignado = candidato;
-          indiceAsignado = indice;
-          break;
+          const objetivoMes = objetivoDelMes(mesKey);
+          if (objetivoMes && (conteoMesEmpleado.get(claveEmpleadoMes) || 0) >= objetivoMes) continue;          if ((horasSemanaEmpleado.get(claveEmpleadoSemana) || 0) + horas > horasMaximasSemana) continue;
+          const horasMes = horasMesEmpleado.get(claveEmpleadoMes) || 0;
+          if (horasMes + horas > horasMaximasMes) continue;
+          if (horasMes < menorHorasMes) {
+            menorHorasMes = horasMes;
+            asignado = candidato;
+            indiceAsignado = indice;
+          }
         }
 
         if (!asignado) {
+          if (!obligatorio || objetivoDelMes(mesKey)) continue;
           throw new Error(`No hay personal disponible para cubrir ${turno.nombre} el ${fechaFormateada} respetando horas semanales y mensuales. Revisa plantilla, turnos y cantidad de empleados.`);
         }
 
@@ -326,7 +384,7 @@ const generadorMallas = {
         const claveEmpleadoMes = `${asignado.id}:${mesKey}`;
         horasSemanaEmpleado.set(claveEmpleadoSemana, (horasSemanaEmpleado.get(claveEmpleadoSemana) || 0) + horas);
         horasMesEmpleado.set(claveEmpleadoMes, (horasMesEmpleado.get(claveEmpleadoMes) || 0) + horas);
-
+        conteoMesEmpleado.set(claveEmpleadoMes, (conteoMesEmpleado.get(claveEmpleadoMes) || 0) + 1);
         const inicio = new Date(`${fechaFormateada}T${String(turno.hora_inicio).slice(0, 8)}Z`);
         const fin = new Date(`${fechaFormateada}T${String(turno.hora_fin).slice(0, 8)}Z`);
         if (fin <= inicio) fin.setUTCDate(fin.getUTCDate() + 1);
@@ -347,6 +405,90 @@ const generadorMallas = {
       }
     }
 
+    // Pasada de completado: cada empleado debe llegar exactamente a su objetivo mensual.
+    // El tope semanal se relaja aquí (puede haber días seguidos); el tope de horas del mes y
+    // los 6 días consecutivos se respetan.
+    if (turnosMensualesEmpleado > 0) {
+      const instanciasPorDia = new Map();
+      const diasDeEmpleado = new Map();
+      const registrar = (inst) => {
+        instanciasPorDia.set(inst.fecha, (instanciasPorDia.get(inst.fecha) || 0) + 1);
+        if (!diasDeEmpleado.has(inst.empleado_id)) diasDeEmpleado.set(inst.empleado_id, new Set());
+        diasDeEmpleado.get(inst.empleado_id).add(inst.fecha);
+      };
+      instancias.forEach(registrar);
+      const mesesPeriodo = [...new Set(diasGenerados.map(d => d.mesKey))];
+      const dia1 = (s, delta) => {
+        const x = new Date(`${s}T00:00:00.000Z`);
+        x.setUTCDate(x.getUTCDate() + delta);
+        return generadorMallas._formatearFecha(x);
+      };
+      const rachaConDia = (set, f) => {
+        let racha = 1;
+        for (let i = 1; set.has(dia1(f, -i)); i++) racha++;
+        for (let i = 1; set.has(dia1(f, i)); i++) racha++;
+        return racha;
+      };
+
+      for (const mesKey of mesesPeriodo) {
+        const objetivo = objetivoDelMes(mesKey);
+        const diasMes = diasGenerados.filter(d => d.mesKey === mesKey);
+        for (const empleado of empleados) {
+          const claveMes = `${empleado.id}:${mesKey}`;
+          while ((conteoMesEmpleado.get(claveMes) || 0) < objetivo) {
+            const propios = diasDeEmpleado.get(empleado.id) || new Set();
+            const candidatos = diasMes
+              .filter(d => !propios.has(d.fecha) && rachaConDia(propios, d.fecha) <= 6)
+              .map(d => ({
+                d,
+                horasSemana: horasSemanaEmpleado.get(`${empleado.id}:${d.semanaKey}`) || 0,
+                carga: instanciasPorDia.get(d.fecha) || 0
+              }))
+              .sort((a, b) => a.horasSemana - b.horasSemana || a.carga - b.carga);
+
+            let colocado = false;
+            for (const { d } of candidatos) {
+              const turno = [...turnosRotacion].sort((a, b) => {
+                const ca = instancias.filter(i => i.fecha === d.fecha && i.plantilla_id === a.plantilla_id).length;
+                const cb = instancias.filter(i => i.fecha === d.fecha && i.plantilla_id === b.plantilla_id).length;
+                return ca - cb;
+              }).find(t => (horasMesEmpleado.get(claveMes) || 0) + Number(t.duracion_horas) <= horasMaximasMes);
+              if (!turno) continue;
+
+              const horas = Number(turno.duracion_horas);
+              const inicio = new Date(`${d.fecha}T${String(turno.hora_inicio).slice(0, 8)}Z`);
+              const fin = new Date(`${d.fecha}T${String(turno.hora_fin).slice(0, 8)}Z`);
+              if (fin <= inicio) fin.setUTCDate(fin.getUTCDate() + 1);
+              const nueva = {
+                fecha: d.fecha,
+                empleado_id: empleado.id,
+                plantilla_id: turno.plantilla_id,
+                sede_id: turno.sede_id || null,
+                turno_nombre: turno.nombre,
+                hora_inicio: turno.hora_inicio,
+                hora_fin: turno.hora_fin,
+                inicio_fecha_hora: generadorMallas._formatearFechaHora(inicio),
+                fin_fecha_hora: generadorMallas._formatearFechaHora(fin),
+                duracion_horas: horas,
+                estado: 'asignada'
+              };
+              instancias.push(nueva);
+              registrar(nueva);
+              horasMesEmpleado.set(claveMes, (horasMesEmpleado.get(claveMes) || 0) + horas);
+              horasSemanaEmpleado.set(`${empleado.id}:${d.semanaKey}`, (horasSemanaEmpleado.get(`${empleado.id}:${d.semanaKey}`) || 0) + horas);
+              conteoMesEmpleado.set(claveMes, (conteoMesEmpleado.get(claveMes) || 0) + 1);
+              colocado = true;
+              break;
+            }
+            if (!colocado) {
+              throw new Error(`No es posible asignar ${objetivo} turnos a cada empleado en ${mesKey} sin superar ${horasMaximasMes} h mensuales o 6 días consecutivos. Ajusta turnos, duración u horas/mes.`);
+            }
+          }
+        }
+      }
+    }
+
+    instancias.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.inicio_fecha_hora.localeCompare(b.inicio_fecha_hora));
     return instancias;
   },
 
@@ -378,7 +520,7 @@ const generadorMallas = {
     const maxHorasSemana = Number(config.horas_por_semana || 42);
     const maxHorasMes = Number(config.horas_por_mes || 182);
     for (const [key, horas] of porEmpleadoSemana) {
-      if (horas > maxHorasSemana) errores.push(`Empleado ${key.split(':')[0]}: ${horas} horas en una semana (máximo ${maxHorasSemana})`);
+      if (horas > maxHorasSemana) advertencias.push(`Empleado ${key.split(':')[0]}: ${horas} horas en una semana (referencia ${maxHorasSemana}); se compensa dentro del tope mensual para cumplir los turnos solicitados`);
     }
     for (const [key, horas] of porEmpleadoMes) {
       if (horas > maxHorasMes) errores.push(`Empleado ${key.split(':')[0]}: ${horas} horas en un mes (máximo ${maxHorasMes})`);
@@ -433,14 +575,20 @@ const generadorMallas = {
     let contador = 0;
     try {
       await connection.beginTransaction();
+      const vistas = new Map();
       for (const instancia of instancias) {
+        // Puede haber varias instancias del mismo turno y día (varios empleados);
+        // solo se omiten las ya existentes en BD para mantener la idempotencia.
+        const clave = `${instancia.plantilla_id}|${instancia.fecha}|${instancia.inicio_fecha_hora}|${instancia.fin_fecha_hora}`;
+        const ordinal = (vistas.get(clave) || 0) + 1;
+        vistas.set(clave, ordinal);
         const [existentes] = await connection.query(
           `SELECT id FROM instancias_turno
            WHERE plantilla_id = ? AND fecha = ? AND inicio_fecha_hora = ? AND fin_fecha_hora = ?
-           LIMIT 1 FOR UPDATE`,
+           FOR UPDATE`,
           [instancia.plantilla_id, instancia.fecha, instancia.inicio_fecha_hora, instancia.fin_fecha_hora]
         );
-        if (existentes.length) continue;
+        if (existentes.length >= ordinal) continue;
 
         const [resultado] = await connection.query(
           `INSERT INTO instancias_turno
