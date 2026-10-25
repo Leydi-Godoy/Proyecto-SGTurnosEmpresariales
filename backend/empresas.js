@@ -16,9 +16,10 @@ router.use(authenticateToken, (req, res, next) => {
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, nombre, nit, pais, ciudad, contacto, correo, telefono, activo, zona_horaria, plan_id, creado_en, actualizado_en
-       FROM empresas
-       ORDER BY nombre ASC, id ASC`,
+      `SELECT e.id, e.nombre, e.nit, e.pais, e.ciudad, e.contacto, e.correo, e.telefono, e.activo, e.zona_horaria, e.plan_id, e.creado_en, e.actualizado_en,
+              (SELECT COUNT(*) FROM usuarios u WHERE u.empresa_id = e.id) AS total_usuarios
+       FROM empresas e
+       ORDER BY e.nombre ASC, e.id ASC`,
     )
     res.json(rows)
   } catch (error) {

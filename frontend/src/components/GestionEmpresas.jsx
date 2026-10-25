@@ -84,7 +84,7 @@ export default function GestionEmpresas() {
           ...empresa,
           email: empresa.correo || empresa.email || '',
           activo: Boolean(Number(empresa.activo ?? 1)),
-          usuarios: 0
+          usuarios: Number(empresa.total_usuarios || 0)
         })))
       })
       .catch(error => setMensaje(`⚠️ ${error.message}`))
